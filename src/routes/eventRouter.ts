@@ -1,5 +1,5 @@
 import express from "express";
-import { EventModel } from "../models/Event.ts";
+import { EventModel } from "../models/Event.js";
 
 /**
  * @swagger

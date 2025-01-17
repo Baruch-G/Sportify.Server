@@ -1,10 +1,10 @@
 import express, { urlencoded, json } from "express";
-import 'dotenv/config';
 import connectDB from "./db.js";
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
-import swaggerOptions from "./swaggerOptions.ts";
-import eventRouter from "./routes/eventRouter.ts";
+import swaggerOptions from "./swaggerOptions.js";
+import eventRouter from "./routes/eventRouter.js";
+import 'dotenv/config';
 
 const port = process.env.PORT || 3000;
 const app = express();

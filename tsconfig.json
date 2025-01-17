@@ -1,11 +1,14 @@
 {
   "compilerOptions": {
-    
-    "module": "NodeNext", 
-    "rootDir": "./src",
-    "moduleResolution": "NodeNext",
     "outDir": "./dist",
-    "allowImportingTsExtensions": true,  // Allow TypeScript extensions in imports
-    "noEmit": true  // Ensure no output files are emitted (TypeScript only checks)
-  }
+    "rootDir": "./src",
+    "module": "ESNext",
+    "target": "ES6",
+    "moduleResolution": "Node",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"]
 }
