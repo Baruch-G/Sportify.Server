@@ -4,6 +4,8 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import swaggerOptions from "./swaggerOptions.js";
 import eventRouter from "./routes/eventRouter.js";
+import categoryRouter from "./routes/categoryRouter.js";
+import userRouter from "./routes/userRouter.js"
 import 'dotenv/config';
 
 const port = process.env.PORT || 3000;
@@ -24,6 +26,8 @@ connectDB();
 
 // Routers
 app.use('/events', eventRouter);
+app.use('/category',categoryRouter)
+app.use('/users',userRouter)
 
 app.listen(port, () => {
   console.log(`Sportify server is listening at port ${port}`);
