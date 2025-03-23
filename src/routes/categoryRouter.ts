@@ -1,111 +1,20 @@
-import express  from "express";
+import express from "express";
 import { CategoryModel } from "../models/Category";
 
+const router = express.Router();
 
 /**
  * @swagger
  * tags:
- *      name: Categories
- *      description: API for managing Categories
- * 
+ *   name: Categories
+ *   description: Category management
  */
-
-
-const router=express.Router();
 
 /**
  * @swagger
- * /api/categories:
- *   get:
- *     summary: Get all categories
- *     tags: [Categories]
- *     responses:
- *       200:
- *         description: A list of categories
- *         content:
- *           application/json:
- *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   id:
- *                     type: string
- *                     example: "123e4567-e89b-12d3-a456-426614174000"
- *                   name:
- *                     type: string
- *                     example: "Running"
- *                   description:
- *                     type: string
- *                     example: "Events related to running"
- *                   imageURL:
- *                     type: string
- *                     example: "https://example.com/running.jpg"
- */
-router.get("/", async (req: any, res: any) => {
-    try {
-      const categories = await CategoryModel.find();
-      res.json(categories);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch categories" });
-    }
-  });
-
-  /**
- * @swagger
- * /api/categories/{id}:
- *   get:
- *     summary: Get a category by ID
- *     tags: [Categories]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: The category ID
- *     responses:
- *       200:
- *         description: Category details
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 id:
- *                   type: string
- *                   example: "123e4567-e89b-12d3-a456-426614174000"
- *                 name:
- *                   type: string
- *                   example: "Yoga"
- *                 description:
- *                   type: string
- *                   example: "All yoga-related events"
- *                 imageURL:
- *                   type: string
- *                   example: "https://example.com/yoga.jpg"
- *       404:
- *         description: Category not found
- */
-router.get("/:id", async (req: any, res: any) => {
-    try {
-      const category = await CategoryModel.findById(req.params.id);
-      if (!category) {
-        return res.status(404).json({ error: "Category not found" });
-      }
-      res.json(category);
-    } catch (error) {
-      res.status(500).json({ error: "Failed to fetch category" });
-    }
-  });
-  
-  
-
-  /**
- * @swagger
- * /api/categories:
+ * /categories:
  *   post:
- *     summary: Create a new category
+ *     summary: Create a new category (child or parent)
  *     tags: [Categories]
  *     requestBody:
  *       required: true
@@ -116,37 +25,100 @@ router.get("/:id", async (req: any, res: any) => {
  *             properties:
  *               name:
  *                 type: string
- *                 example: "Yoga"
  *               description:
  *                 type: string
- *                 example: "All yoga-related events"
  *               imageURL:
  *                 type: string
- *                 example: "https://example.com/yoga.jpg"
+ *               parentCategoryId:
+ *                 type: string
+ *               popularityScore:
+ *                 type: number
+ *               difficultyLevel:
+ *                 type: number
  *     responses:
  *       201:
  *         description: Category created successfully
- *       400:
- *         description: Invalid input
  */
-router.post("/", async (req: any, res: any) => {
-    try {
-      const { name, description, imageURL } = req.body;
-      const category = new CategoryModel({ name, description, imageURL });
-      await category.save();
-      res.status(201).json(category);
-    } catch (error) {
-      res.status(400).json({ error: "Failed to create category" });
-    }
-  });
-
-
+router.post("/", async (req, res) => {
+  try {
+    const category = new CategoryModel(req.body);
+    const saved = await category.save();
+    res.status(201).json(saved);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to create category" });
+  }
+});
 
 /**
  * @swagger
- * /api/categories/{id}:
- *   delete:
- *     summary: Delete a category by ID
+ * /categories:
+ *   get:
+ *     summary: Get all non-parent (child) categories
+ *     tags: [Categories]
+ *     responses:
+ *       200:
+ *         description: List of child categories
+ */
+router.get("/", async (_, res) => {
+  try {
+    const categories = await CategoryModel.find({ parentCategoryId: { $ne: null } });
+    res.json(categories);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch categories" });
+  }
+});
+
+/**
+ * @swagger
+ * /categories/parents:
+ *   get:
+ *     summary: Get all top-level (parent) categories
+ *     tags: [Categories]
+ *     responses:
+ *       200:
+ *         description: List of parent categories
+ */
+router.get("/parents", async (_, res) => {
+  try {
+    const parents = await CategoryModel.find({ parentCategoryId: null });
+    res.json(parents);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch parent categories" });
+  }
+});
+
+/**
+ * @swagger
+ * /categories/parent/{parentId}:
+ *   get:
+ *     summary: Get all subcategories under a specific parent
+ *     tags: [Categories]
+ *     parameters:
+ *       - in: path
+ *         name: parentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: UUID of parent category
+ *     responses:
+ *       200:
+ *         description: Subcategories
+ */
+router.get("/parent/:parentId", async (req, res) => {
+  try {
+    const { parentId } = req.params;
+    const subs = await CategoryModel.find({ parentCategoryId: parentId });
+    res.json(subs);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to fetch subcategories" });
+  }
+});
+
+/**
+ * @swagger
+ * /categories/{id}:
+ *   put:
+ *     summary: Update a category
  *     tags: [Categories]
  *     parameters:
  *       - in: path
@@ -154,24 +126,52 @@ router.post("/", async (req: any, res: any) => {
  *         required: true
  *         schema:
  *           type: string
- *         description: The category ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
  *     responses:
  *       200:
- *         description: Category deleted successfully
- *       404:
- *         description: Category not found
+ *         description: Category updated
  */
-router.delete("/:id", async (req: any, res: any) => {
-    try {
-      const deletedCategory = await CategoryModel.findByIdAndDelete(req.params.id);
-      if (!deletedCategory) {
-        return res.status(404).json({ error: "Category not found" });
-      }
-      res.json({ message: "Category deleted successfully" });
-    } catch (error) {
-      res.status(500).json({ error: "Failed to delete category" });
-    }
-  });
+router.put("/:id", async (req, res) => {
+  try {
+    const updated = await CategoryModel.findOneAndUpdate(
+      { id: req.params.id },
+      req.body,
+      { new: true }
+    );
+    res.json(updated);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update category" });
+  }
+});
 
+/**
+ * @swagger
+ * /categories/{id}:
+ *   delete:
+ *     summary: Delete a category
+ *     tags: [Categories]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Category deleted
+ */
+router.delete("/:id", async (req, res) => {
+  try {
+    await CategoryModel.findOneAndDelete({ id: req.params.id });
+    res.json({ message: "Category deleted" });
+  } catch (error) {
+    res.status(500).json({ error: "Failed to delete category" });
+  }
+});
 
 export default router;

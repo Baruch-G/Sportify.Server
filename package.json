@@ -4,7 +4,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "ts-node --esm src/index.ts",
+    "dev": "node --loader ts-node/esm --experimental-specifier-resolution=node src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js"
   },
@@ -19,9 +19,10 @@
     "@types/swagger-ui-express": "^4.1.7",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
-    "typescript": "^5.7.3"
+    "typescript": "^5.8.2"
   },
   "dependencies": {
+    "@types/node": "^22.13.11",
     "bcryptjs": "^3.0.2",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",

@@ -7,7 +7,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/users/register:
+ * /users/register:
  *   post:
  *     summary: Register a new user
  *     tags: [Users]
@@ -27,6 +27,9 @@ const router = express.Router();
  *               password:
  *                 type: string
  *                 example: "securepassword123"
+ *               age:
+ *                  type: number
+ *                  example: 22
  *     responses:
  *       201:
  *         description: User registered successfully
@@ -35,7 +38,7 @@ const router = express.Router();
  */
 router.post("/register", async (req: any, res: any) => {
   try {
-    const { username, email, password } = req.body;
+    const { username, email, password,age } = req.body;
 
     // בדיקה אם המשתמש קיים
     const existingUser = await UserModel.findOne({ email });
@@ -43,17 +46,17 @@ router.post("/register", async (req: any, res: any) => {
       return res.status(400).json({ error: "User already exists" });
     }
 
-    const newUser = new UserModel({ username, email, password });
+    const newUser = new UserModel({ username, email, password,age });
     await newUser.save();
     res.status(201).json({ message: "User registered successfully" });
   } catch (error) {
-    res.status(400).json({ error: "Failed to register user" });
+    res.status(400).json({ error: "Failed to register user!!!" });
   }
 });
 
 /**
  * @swagger
- * /api/users/login:
+ * /users/login:
  *   post:
  *     summary: Login user and get a token
  *     tags: [Users]
@@ -92,10 +95,33 @@ router.post("/login", async (req: any, res: any) => {
     res.status(500).json({ error: "Login failed" });
   }
 });
+/**
+ * @swagger
+ * /users:
+ *   get:
+ *     summary: Get all users
+ *     tags: [Users]
+ *   
+ *     responses:
+ *       200:
+ *         description: List of users 
+ *       404:
+ *         description: Error fetching users
+ */
+router.get("/",async(req:any,res:any)=>{
+  try{
+    const users= await UserModel.find()
+    res.status(200).json(users)
+  }catch(error){
+    res.status(500).json({ error: "Failed to fetch user" });
+  }
+})
+
+
 
 /**
  * @swagger
- * /api/users/{id}:
+ * /users/{id}:
  *   get:
  *     summary: Get user by ID
  *     tags: [Users]

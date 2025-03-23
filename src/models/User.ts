@@ -9,6 +9,9 @@ export interface IUser extends Document {
     password: string;
     role: "user" | "admin";
     createdAt: Date;
+    age:number;
+    wheight: number;
+    gender: "male" | "female";
   }
 
   const UserSchema: Schema = new Schema({
@@ -17,6 +20,7 @@ export interface IUser extends Document {
     password: { type: String, required: true },
     role: { type: String, enum: ["user", "admin"], default: "user" },
     createdAt: { type: Date, default: Date.now },
+    age: {type: Number,required:true}
   });
 
   UserSchema.pre<IUser>("save", async function (next) {

@@ -1,21 +1,39 @@
-import mongoose,{Schema,Document} from "mongoose";
+import mongoose, { Schema, Document } from "mongoose";
 import { v4 as uuidv4 } from "uuid";
 
 export interface ICategory extends Document {
-    id: string; 
-    name: string; 
-    description: string; 
-    imageURL: string; 
-  }
+  id: string;
+  name: string;
+  description: string;
+  imageURL: string;
+  parentCategoryId?: string | null;
+  popularityScore?: number;
+  difficultyLevel?: number;
+}
 
+const CategorySchema: Schema = new Schema({
+  id: { type: String, default: uuidv4 },
+  name: { type: String, required: true },
+  description: { type: String, required: true },
+  imageURL: { type: String, required: true },
 
-const CategorySchema: Schema=new Schema({
+  parentCategoryId: {
+    type: String,
+    ref: "Category",
+    default: null, // null = top-level category
+  },
 
-    id:{type:String,default:uuidv4},
-    name: {type:String,required:true},
-    description: {type:String,required:true},
-    imageURL: {type:URL,required:true}
+  popularityScore: {
+    type: Number,
+    default: 0,
+    min: 0,
+  },
 
-})
+  difficultyLevel: {
+    type: Number,
+    enum: [1, 2, 3], // 1 = Beginner, 2 = Intermediate, 3 = Advanced
+    default: 1,
+  },
+});
 
 export const CategoryModel = mongoose.model<ICategory>("Category", CategorySchema);
