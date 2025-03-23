@@ -17,6 +17,12 @@ const router = express.Router();
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - username
+ *               - email
+ *               - password
+ *               - age
+ *               - gender
  *             properties:
  *               username:
  *                 type: string
@@ -28,31 +34,84 @@ const router = express.Router();
  *                 type: string
  *                 example: "securepassword123"
  *               age:
- *                  type: number
- *                  example: 22
+ *                 type: number
+ *                 example: 22
+ *               gender:
+ *                 type: string
+ *                 enum: [male, female]
+ *                 example: "male"
+ *               wheight:
+ *                 type: number
+ *                 example: 75
+ *               height:
+ *                 type: number
+ *                 example: 180
+ *               fitnessGoal:
+ *                 type: string
+ *                 example: "Lose weight"
+ *               activityLevel:
+ *                 type: string
+ *                 enum: [low, moderate, high]
+ *                 example: "moderate"
+ *               sportsInterests:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["Running", "Yoga"]
+ *               favoriteCategoryIds:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["c76c0d4f-4356-4960-a7e7-b8887682e69e", "1b34c044-df21-4d00-b67c-9f6b5e62aa0a"]
  *     responses:
  *       201:
  *         description: User registered successfully
  *       400:
  *         description: Invalid input
  */
+
 router.post("/register", async (req: any, res: any) => {
   try {
-    const { username, email, password,age } = req.body;
+    const {
+      username,
+      email,
+      password,
+      age,
+      gender,
+      wheight,
+      height,
+      fitnessGoal,
+      activityLevel,
+      sportsInterests,
+      favoriteCategoryIds,
+    } = req.body;
 
-    // בדיקה אם המשתמש קיים
     const existingUser = await UserModel.findOne({ email });
     if (existingUser) {
       return res.status(400).json({ error: "User already exists" });
     }
 
-    const newUser = new UserModel({ username, email, password,age });
+    const newUser = new UserModel({
+      username,
+      email,
+      password,
+      age,
+      gender,
+      wheight,
+      height,
+      fitnessGoal,
+      activityLevel,
+      sportsInterests,
+      favoriteCategoryIds,
+    });
+
     await newUser.save();
     res.status(201).json({ message: "User registered successfully" });
   } catch (error) {
     res.status(400).json({ error: "Failed to register user!!!" });
   }
 });
+
 
 /**
  * @swagger
