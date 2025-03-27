@@ -14,6 +14,7 @@ const app = express();
 
 const allowedOrigins = ["http://localhost:5173", "https://sportify-qa-client.onrender.com", "https://sportify-client-gsxc.onrender.com"];
 
+
 app.use(
   cors({
     origin: (origin, callback) => {
