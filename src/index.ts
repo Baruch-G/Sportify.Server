@@ -7,10 +7,26 @@ import eventRouter from "./routes/eventRouter";
 import categoryRouter from "./routes/categoryRouter";
 import userRouter from "./routes/userRouter"
 import 'dotenv/config';
+import cors from "cors";
 
 const port = process.env.PORT || 3000;
 const app = express();
 
+const allowedOrigins = ["http://localhost:5173", "https://sportify-qa-client.onrender.com/", "https://sportify-client-gsxc.onrender.com/"];
+
+app.use(
+  cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
 app.use(urlencoded({ extended: true }));
 
 
