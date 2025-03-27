@@ -12,7 +12,8 @@ import cors from "cors";
 const port = process.env.PORT || 3000;
 const app = express();
 
-const allowedOrigins = ["http://localhost:5173", "https://sportify-qa-client.onrender.com/", "https://sportify-client-gsxc.onrender.com/"];
+const allowedOrigins = ["http://localhost:5173", "https://sportify-qa-client.onrender.com", "https://sportify-client-gsxc.onrender.com"];
+
 
 app.use(
   cors({
