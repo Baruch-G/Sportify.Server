@@ -1,5 +1,5 @@
 import express, { urlencoded, json } from "express";
-import connectDB from "./db.js";
+import connectDB from "./db";
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import swaggerOptions from "./swaggerOptions";
