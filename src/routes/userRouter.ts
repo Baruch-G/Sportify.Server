@@ -2,7 +2,7 @@ import express from "express";
 import { UserModel } from "../models/User";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-
+import {EventModel} from "../models/Event";
 const router = express.Router();
 
 /**
@@ -208,5 +208,6 @@ router.get("/:id", async (req: any, res: any) => {
     res.status(500).json({ error: "Failed to fetch user" });
   }
 });
+
 
 export default router;
