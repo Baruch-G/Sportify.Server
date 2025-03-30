@@ -68,20 +68,12 @@ import bcrypt from "bcryptjs";
   return bcrypt.compare(enteredPassword, this.password);
 };
 
-export async function findCityById(id: any) {
+export async function findUserById(id: string) {
   const user = await UserModel.findById(id);
   if (!user) {
     throw new Error("User not found");
   }
-  return user.city; // Return the city of the found user
+  return user;
 }
-export async function findSportsInterestsById(id: any) {
-  const user = await UserModel.findById(id);
-  if (!user) {
-    throw new Error("User not found");
-  }
-  return user.sportsInterests; // Return the city of the found user
-}
-
 
 export const UserModel = mongoose.model<IUser>("User", UserSchema);

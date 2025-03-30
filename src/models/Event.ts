@@ -59,4 +59,12 @@ const EventSchema: Schema = new Schema({
   organizer: { type: String, required: true },
 });
 
+export async function findSportsInterestsById(city: string) {
+  const events = await EventModel.find({city : city});
+  if (!events) {
+    throw new Error("Events not found");
+  }
+  return events; // Return the city of the found user
+}
+
 export const EventModel = mongoose.model<IEvent>("Event", EventSchema);
