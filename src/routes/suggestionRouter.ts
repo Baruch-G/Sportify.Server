@@ -28,13 +28,13 @@ Here are the sports events: ${JSON.stringify(eventsBycityUser)}`;
 }
 router.post("/:id/suggestEvents", async (req: any, res: any) => {
   try {
-    const city = await findCityById(req.params.id);  // Récupérer la ville de l'utilisateur
-    const sportsInterests: any = await findSportsInterestsById(req.params.id);  // Récupérer les intérêts sportifs
+    const city = await findCityById(req.params.id);
+    const sportsInterests: any = await findSportsInterestsById(req.params.id);
 
-    // Utilisation de la fonction IA pour générer des événements suggérés
+
     const suggestedEvents = await getSuggestEvents(sportsInterests, city);
 
-    res.status(200).json(suggestedEvents);  // Retourner les événements suggérés
+    res.status(200).json(suggestedEvents);  
   } catch (error:any) {
     res.status(500).json({ error: "Failed to get suggestions", message: error.message });
   }
