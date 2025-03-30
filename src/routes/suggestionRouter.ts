@@ -30,9 +30,9 @@ Here are the sports events: ${JSON.stringify(eventsBycityUser)}`;
 router.post("/:city",async (req:any,res:any)=>{
   try{
     const city= req.params.city;
-    const {User}= req.body;
+    const {userSportInterests}= req.body.sportsInterests;
     const eventsBycityUser=await EventModel.find({city});
-    const suggestedEvents=getSuggestEvents(User,eventsBycityUser);
+    const suggestedEvents=getSuggestEvents(userSportInterests,eventsBycityUser);
     res.status(200).json(suggestedEvents);
 
   }catch(error){
