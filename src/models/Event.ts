@@ -1,17 +1,6 @@
 import mongoose, { Schema, Document } from "mongoose";
 import { v4 as uuidv4 } from "uuid";
 
-export interface IPeriodicInfo {
-  startDate: Date; // When the event series starts
-  endDate?: Date; // Optional, for events that have a defined end date
-  recurrence: {
-    frequency: "daily" | "weekly" | "monthly"; // Frequency of recurrence
-    interval: number; // Interval between recurrences (e.g., every 2 weeks)
-    dayOfTheWeek?: string[]; // Applicable for weekly events (e.g., ["Monday", "Wednesday"])
-    dayOfMonth?: number[]; // Applicable for monthly events (e.g., [1, 15])
-  };
-}
-
 export interface IEvent extends Document {
   id: string; // Auto-generated GUID
   address: {
@@ -24,22 +13,11 @@ export interface IEvent extends Document {
     longitude: number;
     latitude: number;
   };
-  periodicInfo?: IPeriodicInfo; // Optional, for periodic events
   duration: number; // In hours
   difficultyLevel: number; // Levels (e.g., 1, 2, 3)
   organizer: string; // User GUID
+  date: Date; // Date and time of the event
 }
-
-const PeriodicInfoSchema: Schema = new Schema({
-  startDate: { type: Date, required: true },
-  endDate: { type: Date },
-  recurrence: {
-    frequency: { type: String, enum: ["daily", "weekly", "monthly"], required: true },
-    interval: { type: Number, required: true },
-    dayOfTheWeek: { type: [String], default: [] },
-    dayOfMonth: { type: [Number], default: [] },
-  },
-});
 
 const EventSchema: Schema = new Schema({
   id: { type: String, default: uuidv4 }, // Auto-generate GUID
@@ -53,10 +31,10 @@ const EventSchema: Schema = new Schema({
     longitude: { type: Number, required: true },
     latitude: { type: Number, required: true },
   },
-  periodicInfo: { type: PeriodicInfoSchema },
   duration: { type: Number, required: true },
   difficultyLevel: { type: Number, required: true, min: 1, max: 3 },
   organizer: { type: String, required: true },
+  date: { type: Date, required: true }, // Date and time combined
 });
 
 export const EventModel = mongoose.model<IEvent>("Event", EventSchema);
