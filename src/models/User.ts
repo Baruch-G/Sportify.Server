@@ -12,7 +12,8 @@ import bcrypt from "bcryptjs";
     age: number;
     wheight: number;
     gender: "male" | "female";
-  
+    addresse:string;
+    city:string;
     height?: number;
     fitnessGoal?: string;
     activityLevel?: "low" | "moderate" | "high";
@@ -29,7 +30,8 @@ import bcrypt from "bcryptjs";
     password: { type: String, required: true },
     role: { type: String, enum: ["user", "admin"], default: "user" },
     createdAt: { type: Date, default: Date.now },
-  
+    addresse:{type:String,require:true,},//avner change
+    city:{type:String,require:true},//avner change
     age: { type: Number, required: true },
     wheight: { type: Number }, // kg 
     gender: { type: String, enum: ["male", "female"], required: true },  
@@ -65,6 +67,21 @@ import bcrypt from "bcryptjs";
   UserSchema.methods.comparePassword = async function (enteredPassword: string): Promise<boolean> {
   return bcrypt.compare(enteredPassword, this.password);
 };
+
+export async function findCityById(id: any) {
+  const user = await UserModel.findById(id);
+  if (!user) {
+    throw new Error("User not found");
+  }
+  return user.city; // Return the city of the found user
+}
+export async function findSportsInterestsById(id: any) {
+  const user = await UserModel.findById(id);
+  if (!user) {
+    throw new Error("User not found");
+  }
+  return user.sportsInterests; // Return the city of the found user
+}
 
 
 export const UserModel = mongoose.model<IUser>("User", UserSchema);
