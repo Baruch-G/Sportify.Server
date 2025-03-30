@@ -42,7 +42,8 @@ app.use(json());
 connectDB();
 
 // Routers
-app.use('/events', suggestionRouter);
+app.use('/events', eventRouter);
+app.use('/suggestions', suggestionRouter);
 app.use('/categories',categoryRouter)
 app.use('/users',userRouter)
 
