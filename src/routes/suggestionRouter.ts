@@ -14,8 +14,8 @@ async function getSuggestEvents(userInfos:String, eventsBycityUser:any) {
   const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
   const prompt = `I have a user profile and a list of sports events. Please return a JSON array of events ranked by user preferences. 
-Here is the user profile: ${JSON.stringify(userInfos)} 
-Here are the sports events: ${JSON.stringify(eventsBycityUser)}`;
+    Here is the user profile: ${JSON.stringify(userInfos)} 
+    Here are the sports events: ${JSON.stringify(eventsBycityUser)}`;
 
   try {
     const result = await model.generateContent(prompt);

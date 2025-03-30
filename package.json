@@ -2,14 +2,13 @@
   "name": "sportify.server",
   "version": "1.0.0",
   "main": "index.js",
-  "type": "module",
+  "type": "commonjs",
   "scripts": {
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js"
   },
   "keywords": [],
-  "allowImportingTsExtensions": true,
   "author": "",
   "license": "ISC",
   "description": "",
@@ -25,10 +24,10 @@
     "typescript": "^5.8.2"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.0",
     "@types/node": "^22.13.11",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
-    "develop": "^1.0.0",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
     "jsonwebtoken": "^9.0.2",
