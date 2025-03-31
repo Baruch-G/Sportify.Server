@@ -29,8 +29,6 @@ const router = express.Router();
  *                 type: string
  *               imageURL:
  *                 type: string
- *               parentCategoryId:
- *                 type: string
  *               popularityScore:
  *                 type: number
  *               difficultyLevel:
@@ -61,56 +59,10 @@ router.post("/", async (req, res) => {
  */
 router.get("/", async (_, res) => {
   try {
-    const categories = await CategoryModel.find({ parentCategoryId: { $ne: null } });
+    const categories = await CategoryModel.find({ id: { $ne: null } });
     res.json(categories);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch categories" });
-  }
-});
-
-/**
- * @swagger
- * /categories/parents:
- *   get:
- *     summary: Get all top-level (parent) categories
- *     tags: [Categories]
- *     responses:
- *       200:
- *         description: List of parent categories
- */
-router.get("/parents", async (_, res) => {
-  try {
-    const parents = await CategoryModel.find({ parentCategoryId: null });
-    res.json(parents);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch parent categories" });
-  }
-});
-
-/**
- * @swagger
- * /categories/parent/{parentId}:
- *   get:
- *     summary: Get all subcategories under a specific parent
- *     tags: [Categories]
- *     parameters:
- *       - in: path
- *         name: parentId
- *         required: true
- *         schema:
- *           type: string
- *         description: UUID of parent category
- *     responses:
- *       200:
- *         description: Subcategories
- */
-router.get("/parent/:parentId", async (req, res) => {
-  try {
-    const { parentId } = req.params;
-    const subs = await CategoryModel.find({ parentCategoryId: parentId });
-    res.json(subs);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch subcategories" });
   }
 });
 
