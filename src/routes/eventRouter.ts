@@ -31,7 +31,7 @@ const router = express.Router();
  */
 router.post("/", async (req: any, res: any) => {
   try {
-    const { address, location, periodicInfo, duration, difficultyLevel, organizer } = req.body;
+    const { address, location, periodicInfo, duration, difficultyLevel, organizer, date } = req.body;
 
     const newEvent = new EventModel({
       address,
@@ -40,6 +40,7 @@ router.post("/", async (req: any, res: any) => {
       duration,
       difficultyLevel,
       organizer,
+      date,
     });
 
     await newEvent.save();
