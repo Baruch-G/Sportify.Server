@@ -1,5 +1,6 @@
 import express from "express";
 import { EventModel } from "../models/Event";
+import { UserModel } from "../models/User";
 
 /**
  * @swagger

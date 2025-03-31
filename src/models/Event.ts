@@ -37,4 +37,18 @@ const EventSchema: Schema = new Schema({
   date: { type: Date, required: true }, // Date and time combined
 });
 
+export async function findSportsInterestsByCity(city:any) {
+  const events = await EventModel.find({"address.city":city});
+  if (events.length===0) {
+    throw new Error("Events not found");
+  }
+  return events; // Return the city of the found user
+}
+export async function getAllEvents() {
+  const events = await EventModel.find();
+  if (events.length===0) {
+    throw new Error("Events not found");
+  }
+  return events; // Return the city of the found user
+}
 export const EventModel = mongoose.model<IEvent>("Event", EventSchema);

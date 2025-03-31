@@ -4,15 +4,15 @@ import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import swaggerOptions from "./swaggerOptions";
 import eventRouter from "./routes/eventRouter";
+import suggestionRouter from "./routes/suggestionRouter"
 import categoryRouter from "./routes/categoryRouter";
 import userRouter from "./routes/userRouter"
 import 'dotenv/config';
 import cors from "cors";
-
 const port = process.env.PORT || 3000;
 const app = express();
 
-const allowedOrigins = ["http://localhost:5173", "https://sportify-qa-client.onrender.com", "https://sportify-client-gsxc.onrender.com"];
+const allowedOrigins = ["http://localhost:5173", "https://sportify-qa-client.onrender.com", "https://sportify-client-gsxc.onrender.com","http://localhost:3000"];
 
 
 app.use(
@@ -43,6 +43,7 @@ connectDB();
 
 // Routers
 app.use('/events', eventRouter);
+app.use('/suggestions', suggestionRouter);
 app.use('/categories',categoryRouter)
 app.use('/users',userRouter)
 
