@@ -9,7 +9,7 @@
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "noEmit": false,
-    "module": "CommonJS",
+    "module": "commonJS",
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules"]

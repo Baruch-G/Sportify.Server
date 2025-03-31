@@ -27,7 +27,7 @@ async function getSuggestEvents(userInfos:any, events: any) {
 }
 
 //event reduce by city
-router.post("/id_city", async (req: any, res: any) => {
+router.get("/id_city", async (req: any, res: any) => {
   try {
     const idParam = req.body.id;
     if (!ObjectId.isValid(idParam)) {
@@ -51,7 +51,7 @@ router.post("/id_city", async (req: any, res: any) => {
   }
 });
 //Get all the events suggestion Ordered BY Ai to suggests an User => not with city filter
-router.post("/id_all", async (req: any, res: any) => {
+router.get("/", async (req: any, res: any) => {
   try {
     const idParam = req.body.id;
     if (!ObjectId.isValid(idParam)) {
@@ -77,7 +77,7 @@ router.post("/id_all", async (req: any, res: any) => {
 });
 
 //if we want filter by Email
-router.post("/byEmail_city", async (req: any, res: any) => {
+router.get("/byEmail_city", async (req: any, res: any) => {
   try {
     const mail=req.body.email;
 
