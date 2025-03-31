@@ -2,7 +2,6 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "module": "commonjs",
     "target": "ESNext",
     "strict": true,
     "esModuleInterop": true,
@@ -10,6 +9,7 @@
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true,
     "noEmit": false,
+    "module": "CommonJS",
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules"]

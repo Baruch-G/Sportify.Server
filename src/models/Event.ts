@@ -59,12 +59,27 @@ const EventSchema: Schema = new Schema({
   organizer: { type: String, required: true },
 });
 
-export async function findSportsInterestsById(city: string) {
-  const events = await EventModel.find({city : city});
-  if (!events) {
+export async function findSportsInterestsByCity(city:any) {
+  const events = await EventModel.find({"address.city":city});
+  if (events.length===0) {
     throw new Error("Events not found");
   }
   return events; // Return the city of the found user
 }
+export async function getAllEvents() {
+  const events = await EventModel.find();
+  if (events.length===0) {
+    throw new Error("Events not found");
+  }
+  return events; // Return the city of the found user
+}
+//if not the same tavnit for the user and the event on difficultLvel cant do this 
+// export async function findSportsInterestsByactivityLevel(level:any) {
+//   const events = await EventModel.find({"difficultyLevel":level});
+//   if (events.length===0) {
+//     throw new Error("Events not found");
+//   }
+//   return events; // Return the city of the found user
+// }
 
 export const EventModel = mongoose.model<IEvent>("Event", EventSchema);
