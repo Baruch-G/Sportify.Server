@@ -6,7 +6,6 @@ export interface ICategory extends Document {
   name: string;
   description: string;
   imageURL: string;
-  parentCategoryId?: string | null;
   popularityScore?: number;
   difficultyLevel?: number;
 }
@@ -16,12 +15,6 @@ const CategorySchema: Schema = new Schema({
   name: { type: String, required: true },
   description: { type: String, required: true },
   imageURL: { type: String, required: true },
-
-  parentCategoryId: {
-    type: String,
-    ref: "Category",
-    default: null, // null = top-level category
-  },
 
   popularityScore: {
     type: Number,
