@@ -17,6 +17,7 @@ export interface IEvent extends Document {
   difficultyLevel: number; // Levels (e.g., 1, 2, 3)
   organizer: string; // User GUID
   date: Date; // Date and time of the event
+  category: string; // Category of the event
 }
 
 const EventSchema: Schema = new Schema({
@@ -35,18 +36,19 @@ const EventSchema: Schema = new Schema({
   difficultyLevel: { type: Number, required: true, min: 1, max: 3 },
   organizer: { type: String, required: true },
   date: { type: Date, required: true }, // Date and time combined
+  category: { type: String, required: true }, // Category of the event
 });
 
-export async function findSportsInterestsByCity(city:any) {
-  const events = await EventModel.find({"address.city":city});
-  if (events.length===0) {
+export async function findSportsInterestsByCity(city: any) {
+  const events = await EventModel.find({ "address.city": city });
+  if (events.length === 0) {
     throw new Error("Events not found");
   }
   return events; // Return the city of the found user
 }
 export async function getAllEvents() {
   const events = await EventModel.find();
-  if (events.length===0) {
+  if (events.length === 0) {
     throw new Error("Events not found");
   }
   return events; // Return the city of the found user
