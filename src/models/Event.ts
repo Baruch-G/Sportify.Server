@@ -1,8 +1,9 @@
 import mongoose, { Schema, Document } from "mongoose";
 import { v4 as uuidv4 } from "uuid";
+import { ICategory } from "./Category";
 
 export interface IEvent extends Document {
-  id: string; // Auto-generated GUID
+  category: mongoose.Schema.Types.ObjectId | ICategory; // Category identifier
   address: {
     addressLine1: string;
     addressLine2?: string;
@@ -19,8 +20,13 @@ export interface IEvent extends Document {
   date: Date; // Date and time of the event
 }
 
-const EventSchema: Schema = new Schema({
-  id: { type: String, default: uuidv4 }, // Auto-generate GUID
+const EventSchema: Schema = new Schema<IEvent>({
+  category: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+    ref: "Category",
+    select: "name description imageURL"  
+  }, // Category identifier
   address: {
     addressLine1: { type: String, required: true },
     addressLine2: { type: String },
