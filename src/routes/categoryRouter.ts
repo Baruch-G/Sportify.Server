@@ -57,9 +57,9 @@ router.post("/", async (req, res) => {
  *       200:
  *         description: List of child categories
  */
-router.get("/", async (_, res) => {
+router.get("/", async (req: any, res: any) => {
   try {
-    const categories = await CategoryModel.find({ id: { $ne: null } });
+    const categories = await CategoryModel.find();
     res.json(categories);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch categories" });
@@ -91,7 +91,7 @@ router.get("/", async (_, res) => {
 router.put("/:id", async (req, res) => {
   try {
     const updated = await CategoryModel.findOneAndUpdate(
-      { id: req.params.id },
+      { _id: req.params.id },
       req.body,
       { new: true }
     );
@@ -119,7 +119,7 @@ router.put("/:id", async (req, res) => {
  */
 router.delete("/:id", async (req, res) => {
   try {
-    await CategoryModel.findOneAndDelete({ id: req.params.id });
+    await CategoryModel.findByIdAndDelete(req.params.id);
     res.json({ message: "Category deleted" });
   } catch (error) {
     res.status(500).json({ error: "Failed to delete category" });
