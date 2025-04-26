@@ -51,10 +51,10 @@ export async function findSportsInterestsByCity(city:any) {
   return events; // Return the city of the found user
 }
 export async function getAllEvents() {
-  const events = await EventModel.find();
+  const events = await EventModel.find().populate('category');
   if (events.length===0) {
     throw new Error("Events not found");
   }
-  return events; // Return the city of the found user
+  return events;
 }
 export const EventModel = mongoose.model<IEvent>("Event", EventSchema);

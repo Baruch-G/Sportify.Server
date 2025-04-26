@@ -1,101 +1,127 @@
 import express from "express";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { findUserById, findUserByMail, IUser, UserModel } from "../models/User";
-import dotenv from "dotenv";
-import { findSportsInterestsByCity, getAllEvents, IEvent } from "../models/Event";
+import { findUserById } from "../models/User";
+import { getAllEvents } from "../models/Event";
 import { ObjectId } from "mongodb";
+import dotenv from "dotenv";
+import { EventWithId } from "../types/suggestions";
+import { getPersonalizedSuggestions } from "../utils/suggestions";
+import { ICategory } from "../models/Category";
+
 dotenv.config();
 const router = express.Router();
 
-// function who send all the info to the Ai+ prompt and return his response(Json only)
-async function getSuggestEvents(userInfos:any, events: any) {
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY || "");
-  const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+// Initialize Google AI
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_KEY || "");
 
-  const prompt = `I have a user profile and a list of sports events. Please return only a JSON array of events ranked by user preferences. 
-    Here is the user infos: ${JSON.stringify(userInfos)} 
-    Here are the sports events: ${JSON.stringify(events)}`;
-
+router.get("/:userId", async (req: any, res: any) => {
   try {
-    const result = await model.generateContent(prompt);
-    const suggestedEvents = result.response.text();
-    // console.log("Suggested Events:", suggestedEvents);
-    return (suggestedEvents);
+    const idParam = req.params.userId;
+
+    // Validate ObjectId
+    if (!ObjectId.isValid(idParam)) {
+      return res.status(400).json({ error: "Invalid user ID format" });
+    }
+
+    const userId = new ObjectId(idParam);
+
+    // Get user and events
+    const user = await findUserById(userId);
+    const events = (await getAllEvents()) as EventWithId[];
+
+    // Get personalized suggestions
+    const suggestions = await getPersonalizedSuggestions(user, events);
+
+    // Map suggestions to full event data
+    const finalResults = suggestions
+      .map(({ eventId, reason, score }) => {
+        const event = events.find((e) => e._id.toString() === eventId);
+        if (!event) return null;
+
+        return {
+          ...event.toObject(),
+          reason,
+          relevanceScore: score,
+        };
+      })
+      .filter((event): event is NonNullable<typeof event> => event !== null);
+
+    res.status(200).json(finalResults);
   } catch (error) {
-    console.error("Error during AI generation:", error);
+    console.error("Recommendation Error:", error);
+    res.status(500).json({
+      error: "Failed to get personalized suggestions",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
   }
-}
+});
 
-//event reduce by city
-router.get("/id_city", async (req: any, res: any) => {
+router.post("/text-suggestions", async (req: any, res: any) => {
   try {
-    const idParam = req.body.id;
-    if (!ObjectId.isValid(idParam)) {
-      return res.status(400).json({ error: "Invalid ID format" });
+    const { prompt } = req.body;
+
+    if (!prompt) {
+      return res.status(400).json({ error: "Prompt is required" });
     }
-    var id :ObjectId= new ObjectId(idParam);
-    const user: IUser = await findUserById(id);
-    const userObject = user.toObject();//convert to an object JS
-    const { email,password,addresse,username,createdAt, ...filteredUser}=userObject;// filter the data to not send private data to Ai
-    const city: String = user.city;
-    const events: IEvent[] = await findSportsInterestsByCity(city);//to reduce the number of events to send to the Gemini we filter the events firt by the User's city
-    const suggestedEvents:any = await getSuggestEvents(filteredUser, events); //then we ask the Ai with the user's infos and events in his city
-    var rawText = suggestedEvents.trim();
-    rawText = rawText.replace(/```json/g, "").replace(/```/g, "");
-    var resultJSon = JSON.parse(rawText);
-    res.status(200).json(resultJSon);
-  } catch (error: any) {
-    res
-      .status(500)
-      .json({ error: "Failed to get suggestions", message: error.message });
+
+    // Get all events to use as context
+    const events = (await getAllEvents()) as EventWithId[];
+
+    // Create a formatted string of available events for context
+    const eventsContext = events
+      .map(
+        (event) =>
+          `Event ID: ${event._id}, Name: ${(event.category as ICategory).name}, Level: ${
+            event.difficultyLevel
+          }, Date: ${event.date}`
+      )
+      .join("\n");
+
+    // Create the AI prompt
+    const aiPrompt = `Given the following user request and available events, provide personalized sport suggestions.
+    
+User Request: ${prompt}
+
+Available Events:
+${eventsContext}
+
+Please provide suggestions in the following format:
+1. A brief analysis of the user's needs
+2. 2-3 specific event recommendations with explanations
+   For each recommendation, provide:
+   - A user-friendly description
+   - The event ID (in parentheses at the end of each recommendation)
+3. General advice for beginners
+
+Keep the response friendly and encouraging. Format the event IDs as (ID: [event_id]) at the end of each recommendation.`;
+
+    // Get AI response
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
+    const result = await model.generateContent(aiPrompt);
+    const response = await result.response;
+    const text = response.text();
+
+    // Extract event IDs from the text
+    const eventIdRegex = /\(ID: ([a-f0-9]+)\)/g;
+    const recommendedEventIds = Array.from(text.matchAll(eventIdRegex)).map(match => match[1]);
+
+    res.status(200).json({
+      suggestions: text,
+      recommendedEventIds,
+      availableEvents: events.map((e) => ({
+        id: e._id.toString(),
+        name: (e.category as ICategory).name,
+        difficultyLevel: e.difficultyLevel,
+        date: e.date,
+      })),
+    });
+  } catch (error) {
+    console.error("AI Suggestion Error:", error);
+    res.status(500).json({
+      error: "Failed to generate suggestions",
+      message: error instanceof Error ? error.message : "Unknown error",
+    });
   }
 });
-//Get all the events suggestion Ordered BY Ai to suggests an User => not with city filter
-router.get("/", async (req: any, res: any) => {
-  try {
-    const idParam = req.body.id;
-    if (!ObjectId.isValid(idParam)) {
-      return res.status(400).json({ error: "Invalid ID format" });
-    }
-    const id:ObjectId = new ObjectId(idParam);
-    const user: IUser = await findUserById(id);
-    const userObject = user.toObject();//convert to an object JS
-    const { email,password,addresse,username,createdAt, ...filteredUser}=userObject;// filter the data to not send private data to Ai
-    //get all the event of the App
-    const events: IEvent[] = await getAllEvents();
 
-    const suggestedEvents:any = await getSuggestEvents(filteredUser, events);
-    var rawText = suggestedEvents.trim();
-    rawText = rawText.replace(/```json/g, "").replace(/```/g, "");
-    var resultJSon = JSON.parse(rawText);
-  res.status(200).json(resultJSon);
-  } catch (error: any) {
-    res
-      .status(500)
-      .json({ error: "Failed to get suggestions", message: error.message });
-  }
-});
-
-//if we want filter by Email
-router.get("/byEmail_city", async (req: any, res: any) => {
-  try {
-    const mail=req.body.email;
-
-  const user: any = await findUserByMail(mail);
-  const city: String = user.city;
-  const userObject = user.toObject();//convert to an object JS
-  const { email,password,addresse,username,createdAt, ...filteredUser}=userObject;// filter the data to not send private data to Ai
-  const events: IEvent[] = await findSportsInterestsByCity(city);//filter By city
-  //then we ask the Ai with the user's infos and events in his city
-  const suggestedEvents:any = await getSuggestEvents(filteredUser, events);
-  var rawText = suggestedEvents.trim();
-  rawText = rawText.replace(/```json/g, "").replace(/```/g, "");
-  var resultJSon = JSON.parse(rawText);
-  res.status(200).json(resultJSon);
-  } catch (error: any) {
-    res
-      .status(500)
-      .json({ error: "Failed to get suggestions", message: error.message });
-  }
-});
 export default router;

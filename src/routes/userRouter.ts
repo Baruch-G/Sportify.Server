@@ -56,11 +56,6 @@ const router = express.Router();
  *                 type: array
  *                 items:
  *                   type: string
- *                 example: ["Running", "Yoga"]
- *               favoriteCategoryIds:
- *                 type: array
- *                 items:
- *                   type: string
  *                 example: ["c76c0d4f-4356-4960-a7e7-b8887682e69e", "1b34c044-df21-4d00-b67c-9f6b5e62aa0a"]
  *     responses:
  *       201:
@@ -82,7 +77,6 @@ router.post("/register", async (req: any, res: any) => {
       fitnessGoal,
       activityLevel,
       sportsInterests,
-      favoriteCategoryIds,
     } = req.body;
 
     const existingUser = await UserModel.findOne({ email });
@@ -101,7 +95,6 @@ router.post("/register", async (req: any, res: any) => {
       fitnessGoal,
       activityLevel,
       sportsInterests,
-      favoriteCategoryIds,
     });
 
     await newUser.save();

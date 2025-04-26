@@ -19,10 +19,7 @@ import { ObjectId } from "mongodb";
     height?: number;
     fitnessGoal?: string;
     activityLevel?: "low" | "moderate" | "high";
-    sportsInterests?: string[];
-  
-    //  Favorite category IDs (referencing Category collection)
-    favoriteCategoryIds?: string[];
+    sportsInterests?: string[]; // list of category ids
   }
   
 
@@ -46,16 +43,10 @@ import { ObjectId } from "mongodb";
       default: "moderate"
     },
     sportsInterests: {
-      type: [String],
-      default: []
-    },
-  
-    // Relation to favorite categories (Category IDs)
-    favoriteCategoryIds: {
       type: [String], // Your custom UUIDs for categories
       ref: "Category",
       default: []
-    },
+    }
   });
 
   UserSchema.pre<IUser>("save", async function (next) {
