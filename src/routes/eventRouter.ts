@@ -65,7 +65,7 @@ router.post("/", async (req: any, res: any) => {
  */
 router.get("/", async (req: any, res: any) => {
   try {
-    const events = await EventModel.find().populate('category');
+    const events = await EventModel.find().populate("category").populate("organizer");
     res.status(200).json(events);
   } catch (error) {
     res.status(500).json({ message: "Error fetching events", error });
@@ -97,7 +97,7 @@ router.get("/:id", async (req: any, res: any) => {
   const { id } = req.params;
 
   try {
-    const event = await EventModel.findById(id).populate('category');
+    const event = await EventModel.findById(id).populate("category").populate("organizer");
     if (!event) {
       return res.status(404).json({ message: "Event not found" });
     }
@@ -135,10 +135,12 @@ router.get("/:id", async (req: any, res: any) => {
  *         description: Error updating event
  */
 router.put("/:id", async (req: any, res: any) => {
-  const { _id } = req.params;
+  const { id } = req.params;
 
+  console.log(id);
+  
   try {
-    const updatedEvent = await EventModel.findOneAndUpdate({ _id }, req.body, { new: true });
+    const updatedEvent = await EventModel.findOneAndUpdate({ _id: id }, req.body, { new: true });
     if (!updatedEvent) {
       return res.status(404).json({ message: "Event not found" });
     }

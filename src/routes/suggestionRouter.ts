@@ -78,7 +78,7 @@ router.post("/text-suggestions", async (req: any, res: any) => {
       .join("\n");
 
     // Create the AI prompt
-    const aiPrompt = `Given the following user request and available events, provide personalized sport suggestions.
+    const aiPrompt = `Given the following user request and available events, provide personalized sport suggestions in a friendly, conversational tone.
     
 User Request: ${prompt}
 
@@ -86,14 +86,14 @@ Available Events:
 ${eventsContext}
 
 Please provide suggestions in the following format:
-1. A brief analysis of the user's needs
+1. A brief, friendly analysis of what the user might enjoy
 2. 2-3 specific event recommendations with explanations
    For each recommendation, provide:
    - A user-friendly description
    - The event ID (in parentheses at the end of each recommendation)
-3. General advice for beginners
+3. A short, encouraging piece of advice
 
-Keep the response friendly and encouraging. Format the event IDs as (ID: [event_id]) at the end of each recommendation.`;
+Keep the response casual and engaging, as if you're having a friendly conversation. Format the event IDs as (ID: [event_id]) at the end of each recommendation.`;
 
     // Get AI response
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
@@ -105,8 +105,26 @@ Keep the response friendly and encouraging. Format the event IDs as (ID: [event_
     const eventIdRegex = /\(ID: ([a-f0-9]+)\)/g;
     const recommendedEventIds = Array.from(text.matchAll(eventIdRegex)).map(match => match[1]);
 
+    // Create a map of event IDs to their names for link generation
+    const eventMap = new Map(
+      events.map(event => [event._id.toString(), (event.category as ICategory).name])
+    );
+
+    // Replace event IDs with clickable links
+    let userFacingResponse = text;
+    recommendedEventIds.forEach(eventId => {
+      const eventName = eventMap.get(eventId);
+      if (eventName) {
+        const link = `[${eventName}](/events/${eventId})`;
+        userFacingResponse = userFacingResponse.replace(
+          `(ID: ${eventId})`,
+          `(${link})`
+        );
+      }
+    });
+
     res.status(200).json({
-      suggestions: text,
+      suggestions: userFacingResponse,
       recommendedEventIds,
       availableEvents: events.map((e) => ({
         id: e._id.toString(),

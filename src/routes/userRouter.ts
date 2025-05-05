@@ -1,7 +1,8 @@
 import express from "express";
-import { UserModel } from "../models/User";
+import { IUser, UserModel } from "../models/User";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { EventModel } from "../models/Event";
 const router = express.Router();
 
 /**
@@ -104,7 +105,6 @@ router.post("/register", async (req: any, res: any) => {
   }
 });
 
-
 /**
  * @swagger
  * /users/login:
@@ -140,7 +140,11 @@ router.post("/login", async (req: any, res: any) => {
     }
 
     // יצירת טוקן
-    const token = jwt.sign({ id: user._id, role: user.role }, "your_secret_key", { expiresIn: "1h" });
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      "your_secret_key",
+      { expiresIn: "1h" }
+    );
     res.json({ token });
   } catch (error) {
     res.status(500).json({ error: "Login failed" });
@@ -152,23 +156,21 @@ router.post("/login", async (req: any, res: any) => {
  *   get:
  *     summary: Get all users
  *     tags: [Users]
- *   
+ *
  *     responses:
  *       200:
- *         description: List of users 
+ *         description: List of users
  *       404:
  *         description: Error fetching users
  */
-router.get("/",async(req:any,res:any)=>{
-  try{
-    const users= await UserModel.find()
-    res.status(200).json(users)
-  }catch(error){
+router.get("/", async (req: any, res: any) => {
+  try {
+    const users = await UserModel.find();
+    res.status(200).json(users);
+  } catch (error) {
     res.status(500).json({ error: "Failed to fetch user" });
   }
-})
-
-
+});
 
 /**
  * @swagger
@@ -191,16 +193,44 @@ router.get("/",async(req:any,res:any)=>{
  */
 router.get("/:id", async (req: any, res: any) => {
   try {
-    const user = await UserModel.findById(req.params.id).select("-password"); // לא להחזיר את הסיסמה
+    const user: IUser = await UserModel.findById(req.params.id).select("-password");
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-    res.json(user);
+
+    console.log("User ID being searched:", req.params.id);
+    
+    // Try to find events by either ObjectId or string ID
+    const events = await EventModel.find({
+      $or: [
+        { organizer: req.params.id },
+        { organizer: req.params.id.toString() }
+      ]
+    }).populate("category");
+    
+    console.log("Found events:", events.length);
+    
+    // Convert events to plain objects and assign to user
+    const plainEvents = events.map(event => {
+      const plainEvent = event.toObject();
+      // Handle populated category
+      if (plainEvent.category && typeof plainEvent.category === 'object' && 'toObject' in plainEvent.category) {
+        plainEvent.category = plainEvent.category.toObject();
+      }
+      return plainEvent;
+    });
+    
+    // Create response object with user data and events
+    const responseData = {
+      ...user.toObject(),
+      events: plainEvents
+    };
+    
+    res.json(responseData);
   } catch (error) {
+    console.error("Error fetching user or events:", error);
     res.status(500).json({ error: "Failed to fetch user" });
   }
 });
-
-
 
 export default router;
