@@ -1,5 +1,6 @@
 import mongoose, { Schema, Document } from "mongoose";
 import { v4 as uuidv4 } from "uuid";
+import { IUser } from "./User";
 import { ICategory } from "./Category";
 
 export interface IEvent extends Document {
@@ -16,7 +17,7 @@ export interface IEvent extends Document {
   };
   duration: number; // In hours
   difficultyLevel: number; // Levels (e.g., 1, 2, 3)
-  organizer: string; // User GUID
+  organizer: mongoose.Schema.Types.ObjectId | IUser; // User GUID
   date: Date; // Date and time of the event
 }
 
@@ -25,7 +26,7 @@ const EventSchema: Schema = new Schema<IEvent>({
     type: mongoose.Schema.Types.ObjectId,
     required: true,
     ref: "Category",
-    select: "name description imageURL"  
+    select: "name description imageURL",
   }, // Category identifier
   address: {
     addressLine1: { type: String, required: true },
@@ -39,20 +40,24 @@ const EventSchema: Schema = new Schema<IEvent>({
   },
   duration: { type: Number, required: true },
   difficultyLevel: { type: Number, required: true, min: 1, max: 3 },
-  organizer: { type: String, required: true },
+  organizer: {
+    type: mongoose.Schema.Types.ObjectId,
+    required: true,
+    ref: "User",
+  },
   date: { type: Date, required: true }, // Date and time combined
 });
 
-export async function findSportsInterestsByCity(city:any) {
-  const events = await EventModel.find({"address.city":city});
-  if (events.length===0) {
+export async function findSportsInterestsByCity(city: any) {
+  const events = await EventModel.find({ "address.city": city });
+  if (events.length === 0) {
     throw new Error("Events not found");
   }
   return events; // Return the city of the found user
 }
 export async function getAllEvents() {
-  const events = await EventModel.find().populate('category');
-  if (events.length===0) {
+  const events = await EventModel.find().populate("category");
+  if (events.length === 0) {
     throw new Error("Events not found");
   }
   return events;
