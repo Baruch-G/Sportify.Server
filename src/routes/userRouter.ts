@@ -78,7 +78,29 @@ router.post("/register", async (req: any, res: any) => {
       fitnessGoal,
       activityLevel,
       sportsInterests,
+      firstName,
+      lastName,
+      aboutMe,
+      address,
+      location,
+      roles,
+      isCoach,
     } = req.body;
+
+    // Validate required fields
+    if (!username || !email || !password || !age || !gender) {
+      return res.status(400).json({
+        error: "Missing required fields",
+        required: ["username", "email", "password", "age", "gender"],
+        received: {
+          username: !!username,
+          email: !!email,
+          password: !!password,
+          age: !!age,
+          gender: !!gender,
+        },
+      });
+    }
 
     const existingUser = await UserModel.findOne({ email });
     if (existingUser) {
@@ -96,12 +118,47 @@ router.post("/register", async (req: any, res: any) => {
       fitnessGoal,
       activityLevel,
       sportsInterests,
+      firstName,
+      lastName,
+      aboutMe,
+      address,
+      location,
+      roles,
+      isCoach,
+    });
+
+    console.log("Attempting to save user:", {
+      username,
+      email,
+      age,
+      gender,
     });
 
     await newUser.save();
     res.status(201).json({ message: "User registered successfully" });
-  } catch (error) {
-    res.status(400).json({ error: "Failed to register user!!!" });
+  } catch (error: any) {
+    console.error("Registration error details:", error);
+
+    // Check if it's a MongoDB validation error
+    if (error.name === "ValidationError" && error.errors) {
+      return res.status(400).json({
+        error: "Validation Error",
+        details: Object.values(error.errors).map((err: any) => err.message),
+      });
+    }
+
+    // Check if it's a MongoDB duplicate key error
+    if (error.code === 11000) {
+      return res.status(400).json({
+        error: "Duplicate field error",
+        details: error.keyPattern,
+      });
+    }
+
+    res.status(400).json({
+      error: "Failed to register user",
+      details: error.message || "Unknown error occurred",
+    });
   }
 });
 
@@ -139,9 +196,8 @@ router.post("/login", async (req: any, res: any) => {
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    // יצירת טוקן
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      { id: user._id, roles: user.roles },
       "your_secret_key",
       { expiresIn: "1h" }
     );
@@ -193,43 +249,104 @@ router.get("/", async (req: any, res: any) => {
  */
 router.get("/:id", async (req: any, res: any) => {
   try {
-    const user: IUser = await UserModel.findById(req.params.id).select("-password");
+    const user: IUser = await UserModel.findById(req.params.id).select(
+      "-password"
+    );
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
     console.log("User ID being searched:", req.params.id);
-    
+
     // Try to find events by either ObjectId or string ID
     const events = await EventModel.find({
       $or: [
         { organizer: req.params.id },
-        { organizer: req.params.id.toString() }
-      ]
+        { organizer: req.params.id.toString() },
+      ],
     }).populate("category");
-    
+
     console.log("Found events:", events.length);
-    
+
     // Convert events to plain objects and assign to user
-    const plainEvents = events.map(event => {
+    const plainEvents = events.map((event) => {
       const plainEvent = event.toObject();
       // Handle populated category
-      if (plainEvent.category && typeof plainEvent.category === 'object' && 'toObject' in plainEvent.category) {
+      if (
+        plainEvent.category &&
+        typeof plainEvent.category === "object" &&
+        "toObject" in plainEvent.category
+      ) {
         plainEvent.category = plainEvent.category.toObject();
       }
       return plainEvent;
     });
-    
+
     // Create response object with user data and events
     const responseData = {
       ...user.toObject(),
-      events: plainEvents
+      events: plainEvents,
     };
-    
+
     res.json(responseData);
   } catch (error) {
     console.error("Error fetching user or events:", error);
     res.status(500).json({ error: "Failed to fetch user" });
+  }
+});
+
+router.put("/:id", async (req: any, res: any) => {
+  try {
+    const { id } = req.params;
+    const {
+      username,
+      email,
+      age,
+      gender,
+      wheight,
+      height,
+      fitnessGoal,
+      activityLevel,
+      sportsInterests,
+      firstName,
+      lastName,
+      aboutMe,
+      address,
+      location,
+      roles,
+      isCoach,
+    } = req.body;
+
+    const updatedUser = await UserModel.findByIdAndUpdate(
+      id,
+      {
+        username,
+        email,
+        age,
+        gender,
+        wheight,
+        height,
+        fitnessGoal,
+        activityLevel,
+        sportsInterests,
+        firstName,
+        lastName,
+        aboutMe,
+        address,
+        location,
+        roles,
+        isCoach,
+      },
+      { new: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.json(updatedUser);
+  } catch (error) {
+    res.status(500).json({ error: "Failed to update user" });
   }
 });
 

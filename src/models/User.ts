@@ -1,32 +1,55 @@
 import mongoose, { Schema, Document } from "mongoose";
 import bcrypt from "bcryptjs";
 
+export type Role = "user" | "admin";
+
 export interface IUser extends Document {
   username: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
-  role: "user" | "admin";
+  roles: Role[];
+  isCoach: boolean;
+  aboutMe?: string;
   createdAt: Date;
   age: number;
   wheight: number;
   gender: "male" | "female";
-  addresse: string;
-  city: string;
+  address: {
+    addressLine1: string;
+    addressLine2?: string;
+    city: string;
+    country: string;
+  };
+  location: {
+    longitude: number;
+    latitude: number;
+  };
   height?: number;
   fitnessGoal?: string;
   activityLevel?: "low" | "moderate" | "high";
-  sportsInterests?: string[]; // list of category ids
-  events?: any[]; // Virtual field for populated events
+  sportsInterests?: string[];
+  events?: any[];
 }
 
 const UserSchema: Schema = new Schema({
   username: { type: String, required: true },
   email: { type: String, required: true, unique: true },
   password: { type: String, required: true },
-  role: { type: String, enum: ["user", "admin"], default: "user" },
+  roles: { type: [String], enum: ["user", "admin"], default: ["user"] },
+  isCoach: { type: Boolean, default: false },
   createdAt: { type: Date, default: Date.now },
-  addresse: { type: String, require: true },
-  city: { type: String, require: true },
+  address: {
+    addressLine1: { type: String, required: true },
+    addressLine2: { type: String },
+    city: { type: String, required: true },
+    country: { type: String, required: true },
+  },
+  location: {
+    longitude: { type: Number },
+    latitude: { type: Number },
+  },
   age: { type: Number, required: true },
   wheight: { type: Number }, // kg
   gender: { type: String, enum: ["male", "female"], required: true },
@@ -38,11 +61,12 @@ const UserSchema: Schema = new Schema({
     default: "moderate",
   },
   sportsInterests: {
-    type: [String], // Your custom UUIDs for categories
+    type: [String],
     ref: "Category",
     default: [],
   },
-  
+  firstName: { type: String, required: true },
+  lastName: { type: String, required: true },
 });
 
 UserSchema.pre<IUser>("save", async function (next) {
