@@ -7,6 +7,7 @@ export interface ICategory extends Document {
   imageURL: string;
   popularityScore?: number;
   difficultyLevel?: number;
+  color: string;
 }
 
 const CategorySchema: Schema = new Schema({
@@ -17,6 +18,10 @@ const CategorySchema: Schema = new Schema({
     type: Number,
     default: 0,
     min: 0,
+  },
+  color: {
+      type: String,
+      required: true
   },
 
   difficultyLevel: {
