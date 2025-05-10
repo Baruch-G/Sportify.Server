@@ -33,6 +33,8 @@ const router = express.Router();
  *                 type: number
  *               difficultyLevel:
  *                 type: number
+ *               color:
+ *                 type: string
  *     responses:
  *       201:
  *         description: Category created successfully
