@@ -1,10 +1,10 @@
 import mongoose, { Schema, Document } from "mongoose";
 import bcrypt from "bcryptjs";
-
+import { v4 as uuidv4 } from "uuid";
 export type Role = "user" | "admin";
 
+
 export interface IUser extends Document {
-  username: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -15,7 +15,7 @@ export interface IUser extends Document {
   createdAt: Date;
   age: number;
   wheight: number;
-  gender: "male" | "female";
+  gender: "Male" | "Female";
   address: {
     addressLine1: string;
     addressLine2?: string;
@@ -33,41 +33,51 @@ export interface IUser extends Document {
   events?: any[];
 }
 
-const UserSchema: Schema = new Schema({
-  username: { type: String, required: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  roles: { type: [String], enum: ["user", "admin"], default: ["user"] },
-  isCoach: { type: Boolean, default: false },
-  createdAt: { type: Date, default: Date.now },
-  address: {
-    addressLine1: { type: String, required: true },
-    addressLine2: { type: String },
-    city: { type: String, required: true },
-    country: { type: String, required: true },
-  },
-  location: {
-    longitude: { type: Number },
-    latitude: { type: Number },
-  },
-  age: { type: Number, required: true },
-  wheight: { type: Number }, // kg
-  gender: { type: String, enum: ["male", "female"], required: true },
-  height: { type: Number }, // cm
-  fitnessGoal: { type: String }, // e.g. "Lose weight", "Build muscle", etc.
-  activityLevel: {
-    type: String,
-    enum: ["low", "moderate", "high"],
-    default: "moderate",
-  },
-  sportsInterests: {
-    type: [String],
-    ref: "Category",
-    default: [],
-  },
-  firstName: { type: String, required: true },
-  lastName: { type: String, required: true },
-});
+  const UserSchema: Schema = new Schema({
+    id: { type: String, default: uuidv4 },
+    firstName: { type: String, required: true },
+    lastName: { type: String, required: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    role: { type: String, enum: ["user", "admin"], default: "user" },
+    createdAt: { type: Date, default: Date.now },
+    address:{type:String,require:true,},
+    location: {
+      longitude: { type: Number},
+      latitude: { type: Number},
+    },
+    city:{type:String,require:false},
+    birthDay: { type: Date, required: false },
+    wheight: { type: Number }, // kg 
+    gender: { type: String, enum: ["Male", "Female"], required: false },  
+    height: { type: Number }, // cm
+    fitnessGoal: { type: String }, // e.g. "Lose weight", "Build muscle", etc.
+    activityLevel: {
+      type: String,
+      // enum: ["low", "moderate", "high"],
+      enum: ["sedentary",
+      "lightly active",
+      "moderately active",
+      "very active",
+      "extra active",
+      "athlete",
+      "bodybuilder",
+      "powerlifter",
+      "crossfitter",
+      "endurance athlete"],
+    },
+    sportsInterests: {
+      type: [String],
+      default: []
+    },
+  
+    // Relation to favorite categories (Category IDs)
+    favoriteCategoryIds: {
+      type: [String], // Your custom UUIDs for categories
+      ref: "Category",
+      default: []
+    },
+  });
 
 UserSchema.pre<IUser>("save", async function (next) {
   if (!this.isModified("password")) return next();
