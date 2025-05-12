@@ -3,8 +3,8 @@ import { IUser, UserModel } from "../models/User";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { EventModel } from "../models/Event";
+import e from "express";
 const router = express.Router();
-
 /**
  * @swagger
  * /users/register:
@@ -68,36 +68,28 @@ const router = express.Router();
 router.post("/register", async (req: any, res: any) => {
   try {
     const {
-      username,
-      email,
-      password,
-      age,
-      gender,
-      wheight,
-      height,
-      fitnessGoal,
-      activityLevel,
-      sportsInterests,
       firstName,
       lastName,
-      aboutMe,
+      email,
+      password,
+      phone,
       address,
-      location,
-      roles,
-      isCoach,
+      location
     } = req.body;
 
     // Validate required fields
-    if (!username || !email || !password || !age || !gender) {
+    if (! firstName||! lastName || ! email || ! password||! phone||! address||! location) {
       return res.status(400).json({
         error: "Missing required fields",
-        required: ["username", "email", "password", "age", "gender"],
+        required: ["firstName","lastName", "email", "password", "phone", "address", "location"],
         received: {
-          username: !!username,
-          email: !!email,
-          password: !!password,
-          age: !!age,
-          gender: !!gender,
+          firstName: firstName,
+          lastName: email,
+          email: email,
+          password: password,
+          phone: phone,
+          address: address,
+          location: location
         },
       });
     }
@@ -108,30 +100,24 @@ router.post("/register", async (req: any, res: any) => {
     }
 
     const newUser = new UserModel({
-      username,
-      email,
-      password,
-      age,
-      gender,
-      wheight,
-      height,
-      fitnessGoal,
-      activityLevel,
-      sportsInterests,
       firstName,
       lastName,
-      aboutMe,
+      email,
+      password,
+      phone,
       address,
       location,
-      roles,
-      isCoach,
+
     });
 
     console.log("Attempting to save user:", {
-      username,
+      firstName,
+      lastName,
       email,
-      age,
-      gender,
+      password,
+      phone,
+      address,
+      location,
     });
 
     await newUser.save();
@@ -161,6 +147,59 @@ router.post("/register", async (req: any, res: any) => {
     });
   }
 });
+router.put("/update", async (req: any, res: any) => {
+  try {
+      const {
+        email,
+        birthDay,
+        gender,
+        wheight,
+        height,
+        fitnessGoal,
+        activityLevel,
+      } = req.body;
+      const updatedUser = await UserModel.findOneAndUpdate(
+        {email},
+        {
+          birthDay, 
+          gender,
+          wheight,
+          height,
+          fitnessGoal,
+          activityLevel,
+        },
+        { new: true , runValidators: true } 
+      );
+      if (! updatedUser) {
+        return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      }res.status(200).json({ message: 'Utilisateur mis à jour avec succès', updatedUser });
+  } catch (error) {
+      res.status(500).json({ message: 'Erreur lors de la mise à jour', error });
+    }
+});
+
+router.put("/updateFavoritesSports", async (req: any, res: any) => {
+  try {
+      const {
+        email,
+        favoriteCategoryIds
+        
+      } = req.body;
+      const updatedUser = await UserModel.findOneAndUpdate(
+        {email},
+        {
+          favoriteCategoryIds
+        },
+        { new: true , runValidators: true } 
+      );
+      if (! updatedUser) {
+        return res.status(404).json({ message: 'Utilisateur non trouvé' });
+      }res.status(200).json({ message: 'Utilisateur mis à jour avec succès', updatedUser });
+  } catch (error) {
+      res.status(500).json({ message: 'Erreur lors de la mise à jour', error });
+    }
+});
+
 
 /**
  * @swagger
