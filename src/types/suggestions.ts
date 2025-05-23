@@ -1,7 +1,8 @@
 import { ObjectId } from "mongodb";
 
 import { IEvent } from "../models/Event";
-
+import { ICategory } from "../models/Category";
+import mongoose from "mongoose";
 export interface EventSuggestion {
   eventId: string;
   reason: string;
@@ -11,8 +12,8 @@ export interface EventSuggestion {
 export interface UserPreferences {
   birthDay: Date;
   city: string;
-  activityLevel: "low" | "moderate" | "high";
-  sportsInterests: string[];
+  activityLevel: "sedentary" | "lightly active" | "moderately active" | "very active" | "extra active" | "athlete" | "bodybuilder";
+  sportsInterests: mongoose.Schema.Types.ObjectId | ICategory[];
   fitnessGoal?: string;
 }
 
