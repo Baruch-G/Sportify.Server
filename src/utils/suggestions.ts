@@ -1,5 +1,18 @@
 import { IUser } from "../models/User";
 import { EventSuggestion, EventWithId, UserPreferences } from "../types/suggestions";
+import mongoose, { Document } from "mongoose";
+import { ICategory } from "../models/Category";
+
+// Helper function to check if sportsInterests includes a category
+function hasSportsInterest(sportsInterests: mongoose.Schema.Types.ObjectId | ICategory[], categoryId: string): boolean {
+  if (Array.isArray(sportsInterests)) {
+    return sportsInterests.some(sport => {
+      const sportId = (sport as any)._id;
+      return sportId && sportId.toString() === categoryId;
+    });
+  }
+  return sportsInterests.toString() === categoryId;
+}
 
 // Calculate a relevance score for an event based on user preferences
 export function calculateEventScore(event: EventWithId, userPrefs: UserPreferences): number {
@@ -12,9 +25,13 @@ export function calculateEventScore(event: EventWithId, userPrefs: UserPreferenc
     
     // Activity level match
     const difficultyMap = {
-      low: 1,
-      moderate: 2,
-      high: 3
+      "sedentary": 1,
+      "lightly active": 1,
+      "moderately active": 2,
+      "very active": 2,
+      "extra active": 3,
+      "athlete": 3,
+      "bodybuilder": 3
     };
     
     const userDifficulty = difficultyMap[userPrefs.activityLevel];
@@ -22,7 +39,7 @@ export function calculateEventScore(event: EventWithId, userPrefs: UserPreferenc
     score += (3 - difficultyDiff) * 2;
     
     // Sports interests match
-    if (userPrefs.sportsInterests.includes(event.category.toString())) {
+    if (hasSportsInterest(userPrefs.sportsInterests, event.category.toString())) {
       score += 4;
     }
     
@@ -35,14 +52,14 @@ export function calculateEventScore(event: EventWithId, userPrefs: UserPreferenc
     }
     
     return score;
-  }
-  
-  // Get personalized event suggestions
-  export async function getPersonalizedSuggestions(user: IUser, events: EventWithId[]): Promise<EventSuggestion[]> {
+}
+
+// Get personalized event suggestions
+export async function getPersonalizedSuggestions(user: IUser, events: EventWithId[]): Promise<EventSuggestion[]> {
     const userPrefs: UserPreferences = {
-      age: user.age,
+      birthDay: user.birthDay,
       city: user.address.city,
-      activityLevel: user.activityLevel || "moderate",
+      activityLevel: user.activityLevel || "moderately active",
       sportsInterests: user.sportsInterests || [],
       fitnessGoal: user.fitnessGoal
     };
@@ -58,30 +75,34 @@ export function calculateEventScore(event: EventWithId, userPrefs: UserPreferenc
     return scoredEvents
       .sort((a, b) => b.score - a.score)
       .slice(0, 10);
-  }
-  
-  // Generate a human-readable reason for the suggestion
-  export function generateReason(event: EventWithId, userPrefs: UserPreferences): string {
+}
+
+// Generate a human-readable reason for the suggestion
+export function generateReason(event: EventWithId, userPrefs: UserPreferences): string {
     const reasons: string[] = [];
     
     if (event.address.city.toLowerCase() === userPrefs.city.toLowerCase()) {
       reasons.push("in your city");
     }
     
-    if (userPrefs.sportsInterests.includes(event.category.toString())) {
+    if (hasSportsInterest(userPrefs.sportsInterests, event.category.toString())) {
       reasons.push("matches your sports interests");
     }
     
-    const difficultyMap = {
-      low: "beginner-friendly",
-      moderate: "moderate intensity",
-      high: "challenging"
+    const difficultyLevelMap = {
+      "sedentary": 1,
+      "lightly active": 1,
+      "moderately active": 2,
+      "very active": 2,
+      "extra active": 3,
+      "athlete": 3,
+      "bodybuilder": 3
     };
     
-    if (event.difficultyLevel === 1 && userPrefs.activityLevel === "low") {
+    if (event.difficultyLevel === difficultyLevelMap[userPrefs.activityLevel]) {
       reasons.push("perfect for your activity level");
     }
     
     return reasons.join(" and ");
-  }
+}
   
