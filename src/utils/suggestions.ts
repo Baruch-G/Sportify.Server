@@ -40,7 +40,7 @@ export function calculateEventScore(event: EventWithId, userPrefs: UserPreferenc
   // Get personalized event suggestions
   export async function getPersonalizedSuggestions(user: IUser, events: EventWithId[]): Promise<EventSuggestion[]> {
     const userPrefs: UserPreferences = {
-      age: user.age,
+      birthDay: user.birthDay,
       city: user.address.city,
       activityLevel: user.activityLevel || "moderate",
       sportsInterests: user.sportsInterests || [],

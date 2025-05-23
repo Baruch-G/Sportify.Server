@@ -9,7 +9,7 @@ export interface EventSuggestion {
 }
 
 export interface UserPreferences {
-  age: number;
+  birthDay: Date;
   city: string;
   activityLevel: "low" | "moderate" | "high";
   sportsInterests: string[];

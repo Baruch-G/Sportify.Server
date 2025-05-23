@@ -1,12 +1,12 @@
 import express from "express";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { findUserById } from "../models/User";
 import { getAllEvents } from "../models/Event";
 import { ObjectId } from "mongodb";
 import dotenv from "dotenv";
 import { EventWithId } from "../types/suggestions";
 import { getPersonalizedSuggestions } from "../utils/suggestions";
 import { ICategory } from "../models/Category";
+import { UserModel } from "../models/User";
 
 dotenv.config();
 const router = express.Router();
@@ -26,8 +26,12 @@ router.get("/:userId", async (req: any, res: any) => {
     const userId = new ObjectId(idParam);
 
     // Get user and events
-    const user = await findUserById(userId);
+    const user = await UserModel.findById(userId);
     const events = (await getAllEvents()) as EventWithId[];
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
 
     // Get personalized suggestions
     const suggestions = await getPersonalizedSuggestions(user, events);

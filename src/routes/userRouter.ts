@@ -1,10 +1,30 @@
-import express from "express";
+import express, {
+  Request,
+  Response,
+  NextFunction,
+  RequestHandler,
+} from "express";
 import { IUser, UserModel } from "../models/User";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
+import jwt, { SignOptions } from "jsonwebtoken";
 import { EventModel } from "../models/Event";
-import e from "express";
+import { authenticateToken, authorizeRoles } from "../middleware/auth";
+import { saveImage, deleteImage } from "../utils/fileUpload";
+import fs from "fs";
+import path from "path";
+import { v4 as uuidv4 } from "uuid";
+import multer from "multer";
+import { UPLOAD_DIR } from "../utils/fileUpload";
+
 const router = express.Router();
+
+// Add Role type at the top of the file after imports
+type Role = 'user' | 'coach' | 'admin';
+
+const isRole = (value: string): value is Role => {
+  return ['user', 'coach', 'admin'].includes(value);
+};
+
 /**
  * @swagger
  * /users/register:
@@ -65,40 +85,83 @@ const router = express.Router();
  *         description: Invalid input
  */
 
-router.post("/register", async (req: any, res: any) => {
+// Helper function to generate tokens
+const generateTokens = (user: IUser) => {
+  const jwtSecret = process.env.JWT_SECRET || "fallback_secret_key";
+  const jwtRefreshSecret =
+    process.env.JWT_REFRESH_SECRET || "fallback_refresh_secret_key";
+  const jwtExpiresIn = process.env.JWT_EXPIRES_IN || "15m";
+  const jwtRefreshExpiresIn = process.env.JWT_REFRESH_EXPIRES_IN || "7d";
+
+  const signOptions: SignOptions = {
+    expiresIn: jwtExpiresIn as jwt.SignOptions["expiresIn"],
+  };
+  const refreshSignOptions: SignOptions = {
+    expiresIn: jwtRefreshExpiresIn as jwt.SignOptions["expiresIn"],
+  };
+
+  const accessToken = jwt.sign(
+    { id: user._id, roles: user.roles },
+    jwtSecret,
+    signOptions
+  );
+
+  const refreshToken = jwt.sign(
+    { id: user._id },
+    jwtRefreshSecret,
+    refreshSignOptions
+  );
+
+  return { accessToken, refreshToken };
+};
+
+// Define a type for async request handlers that properly handles void returns
+type AsyncRequestHandler = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => Promise<void>;
+
+// Register endpoint
+const registerHandler: AsyncRequestHandler = async (req, res, next) => {
   try {
-    const {
-      firstName,
-      lastName,
-      email,
-      password,
-      phone,
-      address,
-      location
-    } = req.body;
+    const { firstName, lastName, email, password, phone, address, location, sportsInterests, coachProfile, isCoach } =
+      req.body;
 
     // Validate required fields
-    if (! firstName||! lastName || ! email || ! password||! phone||! address||! location) {
-      return res.status(400).json({
+    if (
+      !firstName ||
+      !lastName ||
+      !email ||
+      !password ||
+      !phone ||
+      !address ||
+      !location
+    ) {
+      res.status(400).json({
         error: "Missing required fields",
-        required: ["firstName","lastName", "email", "password", "phone", "address", "location"],
-        received: {
-          firstName: firstName,
-          lastName: email,
-          email: email,
-          password: password,
-          phone: phone,
-          address: address,
-          location: location
-        },
+        required: [
+          "firstName",
+          "lastName",
+          "email",
+          "password",
+          "phone",
+          "address",
+          "location",
+        ],
+        received: req.body,
       });
+      return;
     }
 
+    // Check if user already exists
     const existingUser = await UserModel.findOne({ email });
     if (existingUser) {
-      return res.status(400).json({ error: "User already exists" });
+      res.status(400).json({ error: "Email already registered" });
+      return;
     }
 
+    // Create new user
     const newUser = new UserModel({
       firstName,
       lastName,
@@ -107,99 +170,88 @@ router.post("/register", async (req: any, res: any) => {
       phone,
       address,
       location,
-
-    });
-
-    console.log("Attempting to save user:", {
-      firstName,
-      lastName,
-      email,
-      password,
-      phone,
-      address,
-      location,
+      sportsInterests,
+      isCoach,
+      coachProfile,
+      roles:  isCoach ? ["user", "coach"] : ["user"], // Default role
     });
 
     await newUser.save();
-    res.status(201).json({ message: "User registered successfully" });
-  } catch (error: any) {
-    console.error("Registration error details:", error);
 
-    // Check if it's a MongoDB validation error
-    if (error.name === "ValidationError" && error.errors) {
-      return res.status(400).json({
-        error: "Validation Error",
-        details: Object.values(error.errors).map((err: any) => err.message),
-      });
-    }
+    // Generate tokens
+    const { accessToken, refreshToken } = generateTokens(newUser);
 
-    // Check if it's a MongoDB duplicate key error
-    if (error.code === 11000) {
-      return res.status(400).json({
-        error: "Duplicate field error",
-        details: error.keyPattern,
-      });
-    }
-
-    res.status(400).json({
-      error: "Failed to register user",
-      details: error.message || "Unknown error occurred",
+    res.status(201).json({
+      message: "User registered successfully",
+      accessToken,
+      refreshToken,
+      user: {
+        id: newUser._id,
+        firstName: newUser.firstName,
+        lastName: newUser.lastName,
+        email: newUser.email,
+        roles: newUser.roles,
+      },
     });
+  } catch (error: any) {
+    next(error);
   }
-});
+};
+
 router.put("/update", async (req: any, res: any) => {
   try {
-      const {
-        email,
+    const {
+      email,
+      birthDay,
+      gender,
+      wheight,
+      height,
+      fitnessGoal,
+      activityLevel,
+    } = req.body;
+    const updatedUser = await UserModel.findOneAndUpdate(
+      { email },
+      {
         birthDay,
         gender,
         wheight,
         height,
         fitnessGoal,
         activityLevel,
-      } = req.body;
-      const updatedUser = await UserModel.findOneAndUpdate(
-        {email},
-        {
-          birthDay, 
-          gender,
-          wheight,
-          height,
-          fitnessGoal,
-          activityLevel,
-        },
-        { new: true , runValidators: true } 
-      );
-      if (! updatedUser) {
-        return res.status(404).json({ message: 'Utilisateur non trouvé' });
-      }res.status(200).json({ message: 'Utilisateur mis à jour avec succès', updatedUser });
-  } catch (error) {
-      res.status(500).json({ message: 'Erreur lors de la mise à jour', error });
+      },
+      { new: true, runValidators: true }
+    );
+    if (!updatedUser) {
+      return res.status(404).json({ message: "Utilisateur non trouvé" });
     }
+    res
+      .status(200)
+      .json({ message: "Utilisateur mis à jour avec succès", updatedUser });
+  } catch (error) {
+    res.status(500).json({ message: "Erreur lors de la mise à jour", error });
+  }
 });
 
 router.put("/updateFavoritesSports", async (req: any, res: any) => {
   try {
-      const {
-        email,
-        favoriteCategoryIds
-        
-      } = req.body;
-      const updatedUser = await UserModel.findOneAndUpdate(
-        {email},
-        {
-          favoriteCategoryIds
-        },
-        { new: true , runValidators: true } 
-      );
-      if (! updatedUser) {
-        return res.status(404).json({ message: 'Utilisateur non trouvé' });
-      }res.status(200).json({ message: 'Utilisateur mis à jour avec succès', updatedUser });
-  } catch (error) {
-      res.status(500).json({ message: 'Erreur lors de la mise à jour', error });
+    const { email, favoriteCategoryIds } = req.body;
+    const updatedUser = await UserModel.findOneAndUpdate(
+      { email },
+      {
+        sportsInterests : favoriteCategoryIds,
+      },
+      { new: true, runValidators: true }
+    );
+    if (!updatedUser) {
+      return res.status(404).json({ message: "Utilisateur non trouvé" });
     }
+    res
+      .status(200)
+      .json({ message: "Utilisateur mis à jour avec succès", updatedUser });
+  } catch (error) {
+    res.status(500).json({ message: "Erreur lors de la mise à jour", error });
+  }
 });
-
 
 /**
  * @swagger
@@ -226,25 +278,49 @@ router.put("/updateFavoritesSports", async (req: any, res: any) => {
  *       401:
  *         description: Invalid credentials
  */
-router.post("/login", async (req: any, res: any) => {
+// Login endpoint
+const loginHandler: AsyncRequestHandler = async (req, res, next) => {
   try {
     const { email, password } = req.body;
-    const user = await UserModel.findOne({ email });
 
-    if (!user || !(await bcrypt.compare(password, user.password))) {
-      return res.status(401).json({ error: "Invalid credentials" });
+    if (!email || !password) {
+      res.status(400).json({
+        error: "Email and password are required",
+      });
+      return;
     }
 
-    const token = jwt.sign(
-      { id: user._id, roles: user.roles },
-      "your_secret_key",
-      { expiresIn: "1m" }
-    );
-    res.json({ token });
-  } catch (error) {
-    res.status(500).json({ error: "Login failed" });
+    const user = await UserModel.findOne({ email });
+    if (!user) {
+      res.status(401).json({ error: "Invalid credentials" });
+      return;
+    }
+
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
+      res.status(401).json({ error: "Invalid credentials" });
+      return;
+    }
+
+    const { accessToken, refreshToken } = generateTokens(user);
+
+    res.json({
+      message: "Login successful",
+      accessToken,
+      refreshToken,
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        image: user.image,
+        roles: user.roles,
+      },
+    });
+  } catch (error: any) {
+    next(error);
   }
-});
+};
 
 /**
  * @swagger
@@ -308,7 +384,18 @@ router.post("/authenticate", async (req: any, res: any) => {
  */
 router.get("/", async (req: any, res: any) => {
   try {
-    const users = await UserModel.find();
+    const { role } = req.query;
+    let query = {};
+    
+    if (role === 'user') {
+      query = { roles: { $in: ['user'] } };
+    } else if (role === 'coach') {
+      query = { roles: { $in: ['coach'] } };
+    }
+
+    const users = await UserModel.find(query)
+      .populate("sportsInterests")
+      .populate("coachProfile.specializations");
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ error: "Failed to fetch user" });
@@ -336,9 +423,9 @@ router.get("/", async (req: any, res: any) => {
  */
 router.get("/:id", async (req: any, res: any) => {
   try {
-    const user: IUser = await UserModel.findById(req.params.id).select(
+    const user = await UserModel.findById(req.params.id).select(
       "-password"
-    );
+    ).populate("coachProfile.specializations").populate("sportsInterests");
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
@@ -436,5 +523,444 @@ router.put("/:id", async (req: any, res: any) => {
     res.status(500).json({ error: "Failed to update user" });
   }
 });
+
+// Refresh token endpoint
+const refreshTokenHandler: AsyncRequestHandler = async (req, res, next) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      res.status(400).json({ error: "Refresh token is required" });
+      return;
+    }
+
+    const jwtRefreshSecret =
+      process.env.JWT_REFRESH_SECRET || "fallback_refresh_secret_key";
+    const decoded = jwt.verify(refreshToken, jwtRefreshSecret) as {
+      id: string;
+    };
+    const user = await UserModel.findById(decoded.id);
+
+    if (!user) {
+      res.status(401).json({ error: "Invalid refresh token" });
+      return;
+    }
+
+    const tokens = generateTokens(user);
+    res.json(tokens);
+  } catch (error: any) {
+    if (error instanceof jwt.TokenExpiredError) {
+      res.status(401).json({ error: "Refresh token expired" });
+      return;
+    }
+    if (error instanceof jwt.JsonWebTokenError) {
+      res.status(401).json({ error: "Invalid refresh token" });
+      return;
+    }
+    next(error);
+  }
+};
+
+// Get current user profile
+const getProfileHandler: AsyncRequestHandler = async (req, res, next) => {
+  try {
+    const user = await UserModel.findById(req.user?._id).select("-password");
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json(user);
+  } catch (error: any) {
+    next(error);
+  }
+};
+
+// Update user profile (protected route)
+const updateProfileHandler: AsyncRequestHandler = async (req, res, next) => {
+  try {
+    const allowedUpdates = [
+      "firstName",
+      "lastName",
+      "phone",
+      "address",
+      "location",
+      "birthDay",
+      "gender",
+      "wheight",
+      "height",
+      "fitnessGoal",
+      "activityLevel",
+      "sportsInterests",
+      "aboutMe",
+    ];
+
+    const updates = Object.keys(req.body)
+      .filter((key) => allowedUpdates.includes(key))
+      .reduce((obj, key) => {
+        obj[key] = req.body[key];
+        return obj;
+      }, {} as any);
+
+    const user = await UserModel.findByIdAndUpdate(
+      req.user?._id,
+      { $set: updates },
+      { new: true, runValidators: true }
+    ).select("-password");
+
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    res.json(user);
+  } catch (error: any) {
+    if (error.name === "ValidationError") {
+      res.status(400).json({
+        error: "Validation Error",
+        details: Object.values(error.errors).map((err: any) => err.message),
+      });
+      return;
+    }
+    next(error);
+  }
+};
+
+// Admin only routes
+const getAllUsersHandler: AsyncRequestHandler = async (req, res, next) => {
+  try {
+    const users = await UserModel.find().select("-password");
+    res.json(users);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getUserByIdHandler: AsyncRequestHandler = async (req, res, next) => {
+  try {
+    const user = await UserModel.findById(req.params.id).select("-password");
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    const events = await EventModel.find({
+      organizer: req.params.id,
+    }).populate("category");
+
+    res.json({
+      ...user.toObject(),
+      events: events.map((event) => event.toObject()),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Multer setup for binary file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, UPLOAD_DIR);
+  },
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname) || '.jpg'; // Default to .jpg if no extension
+    const userId = req.params.userId;
+    cb(null, `${userId}${ext}`);
+  },
+});
+const upload = multer({ storage });
+
+// New route: POST /users/upload-profile-image/:userId (binary, no auth)
+router.post(
+  "/upload-profile-image/:userId",
+  upload.single("image"),
+  async (req: Request, res: Response) => {
+    try {
+      const { userId } = req.params;
+      if (!req.file) {
+        res.status(400).json({ error: "No image file uploaded" });
+        return;
+      }
+
+      const user = await UserModel.findById(userId);
+      if (!user) {
+        // Clean up uploaded file if user not found
+        await fs.promises.unlink(req.file.path);
+        res.status(404).json({ error: "User not found" });
+        return;
+      }
+
+      // Delete old image if it exists and has a different name
+      if (user.image) {
+        const oldImagePath = path.join(UPLOAD_DIR, path.basename(user.image));
+        if (oldImagePath !== req.file.path) { // Only delete if it's a different file
+          try {
+            await deleteImage(user.image);
+          } catch (error) {
+            console.error("Error deleting old image:", error);
+          }
+        }
+      }
+
+      // Save new image path (relative URL)
+      const relPath = `/uploads/profile-images/${path.basename(req.file.path)}`;
+      user.image = relPath;
+      await user.save();
+      res.json({ message: "Profile image uploaded successfully", imageUrl: relPath });
+    } catch (error) {
+      console.error("Error in binary upload-profile-image:", error);
+      // Clean up uploaded file if there's an error
+      if (req.file) {
+        try {
+          await fs.promises.unlink(req.file.path);
+        } catch (unlinkError) {
+          console.error("Error cleaning up file after upload error:", unlinkError);
+        }
+      }
+      res.status(500).json({ error: "Failed to upload image" });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /users/update-profile-image/{userId}:
+ *   patch:
+ *     summary: Update user's profile image URL
+ *     tags: [Users]
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The user ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - imageUrl
+ *             properties:
+ *               imageUrl:
+ *                 type: string
+ *                 description: URL of the profile image
+ *     responses:
+ *       200:
+ *         description: Profile image updated successfully
+ *       400:
+ *         description: Invalid input
+ *       404:
+ *         description: User not found
+ */
+router.patch(
+  "/update-profile-image/:userId",
+  async (req: any, res: any, next: any) => {
+    try {
+      const { userId } = req.params;
+      const { imageUrl } = req.body;
+
+      if (!imageUrl) {
+        return res.status(400).json({ error: "Image URL is required" });
+      }
+
+      if (!userId) {
+        return res.status(400).json({ error: "User ID is required" });
+      }
+
+      const user = await UserModel.findById(userId);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Delete old image if it exists
+      if (user.image) {
+        try {
+          await deleteImage(user.image);
+        } catch (error) {
+          console.error("Error deleting old image:", error);
+          // Continue with update even if delete fails
+        }
+      }
+
+      // Update user with new image URL
+      user.image = imageUrl;
+      await user.save();
+
+      res.json({
+        message: "Profile image updated successfully",
+        user: {
+          id: user._id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          email: user.email,
+          image: user.image,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /users/become-coach:
+ *   post:
+ *     summary: Update user profile to become a coach
+ *     tags: [Users]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - aboutMe
+ *               - coachingStyle
+ *               - hourlyRate
+ *               - languages
+ *               - specializations
+ *               - certifications
+ *               - achievements
+ *               - coachingStartDate
+ *             properties:
+ *               aboutMe:
+ *                 type: string
+ *               coachingStyle:
+ *                 type: string
+ *               hourlyRate:
+ *                 type: number
+ *               languages:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               specializations:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *               certifications:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               achievements:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               coachingStartDate:
+ *                 type: string
+ *                 format: date-time
+ *     responses:
+ *       200:
+ *         description: User successfully updated to coach
+ *       400:
+ *         description: Invalid input
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
+ */
+const becomeCoachHandler: AsyncRequestHandler = async (req, res, next) => {
+  try {
+    const userId = req.user?._id;
+    if (!userId) {
+      res.status(401).json({ error: "User not authenticated" });
+      return;
+    }
+
+    const {
+      aboutMe,
+      coachingStyle,
+      hourlyRate,
+      languages,
+      specializations,
+      certifications,
+      achievements,
+      coachingStartDate
+    } = req.body;
+
+    // Validate required fields
+    if (!aboutMe || !coachingStyle || !hourlyRate || !languages || !specializations || !certifications || !achievements || !coachingStartDate) {
+      res.status(400).json({
+        error: "Missing required fields",
+        required: [
+          "aboutMe",
+          "coachingStyle",
+          "hourlyRate",
+          "languages",
+          "specializations",
+          "certifications",
+          "achievements",
+          "coachingStartDate"
+        ]
+      });
+      return;
+    }
+
+    const user = await UserModel.findById(userId);
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    // Update user to become a coach
+    user.isCoach = true;
+    // Ensure all roles are valid Role types
+    const currentRoles = user.roles.filter(isRole);
+    user.roles = [...new Set([...currentRoles, 'coach'])] as Role[];
+    user.coachProfile = {
+      aboutMe,
+      coachingStyle,
+      hourlyRate,
+      languages,
+      specializations,
+      certifications,
+      achievements,
+      coachingStartDate: new Date(coachingStartDate)
+    };
+
+    await user.save();
+
+    res.status(200).json({
+      message: "Successfully updated to coach profile",
+      user: {
+        id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        isCoach: user.isCoach,
+        roles: user.roles,
+        coachProfile: user.coachProfile
+      }
+    });
+    return;
+  } catch (error: any) {
+    console.error("Error in become-coach:", error);
+    if (error.name === "ValidationError") {
+      res.status(400).json({
+        error: "Validation Error",
+        details: Object.values(error.errors).map((err: any) => err.message)
+      });
+      return;
+    }
+    next(error);
+  }
+};
+
+// Register routes with proper middleware types
+router.post("/register", registerHandler);
+router.post("/login", loginHandler);
+router.post("/refresh-token", refreshTokenHandler);
+router.get("/me", authenticateToken, getProfileHandler);
+router.put("/me", authenticateToken, updateProfileHandler);
+router.get("/", authenticateToken, authorizeRoles("admin"), getAllUsersHandler);
+router.get(
+  "/:id",
+  authenticateToken,
+  authorizeRoles("admin"),
+  getUserByIdHandler
+);
+router.post("/become-coach", authenticateToken, becomeCoachHandler);
 
 export default router;
