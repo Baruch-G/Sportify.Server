@@ -125,7 +125,7 @@ type AsyncRequestHandler = (
 // Register endpoint
 const registerHandler: AsyncRequestHandler = async (req, res, next) => {
   try {
-    const { firstName, lastName, email, password, phone, address, location, sportsInterests, coachProfile, isCoach } =
+    const { firstName, lastName, email, password, phone, address, location, sportsInterests, coachProfile, isCoach,gender, birthDay, image, wheight, height, fitnessGoal, activityLevel } =
       req.body;
 
     // Validate required fields
@@ -173,6 +173,13 @@ const registerHandler: AsyncRequestHandler = async (req, res, next) => {
       sportsInterests,
       isCoach,
       coachProfile,
+      gender,
+      birthDay,
+      image,
+      wheight,
+      height,
+      fitnessGoal,
+      activityLevel,
       roles:  isCoach ? ["user", "coach"] : ["user"], // Default role
     });
 
