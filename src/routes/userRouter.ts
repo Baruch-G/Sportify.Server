@@ -8,6 +8,7 @@ import { IUser, UserModel } from "../models/User";
 import bcrypt from "bcryptjs";
 import jwt, { SignOptions } from "jsonwebtoken";
 import { EventModel } from "../models/Event";
+import { CoachReviewModel } from "../models/CoachReview";
 import { authenticateToken, authorizeRoles } from "../middleware/auth";
 import { saveImage, deleteImage } from "../utils/fileUpload";
 import fs from "fs";
@@ -15,6 +16,7 @@ import path from "path";
 import { v4 as uuidv4 } from "uuid";
 import multer from "multer";
 import { UPLOAD_DIR } from "../utils/fileUpload";
+import mongoose from "mongoose";
 
 const router = express.Router();
 
@@ -215,6 +217,11 @@ router.put("/update", async (req: any, res: any) => {
       height,
       fitnessGoal,
       activityLevel,
+      phone,
+      address,
+      sportsInterests,
+      firstName,
+      lastName
     } = req.body;
     const updatedUser = await UserModel.findOneAndUpdate(
       { email },
@@ -225,6 +232,11 @@ router.put("/update", async (req: any, res: any) => {
         height,
         fitnessGoal,
         activityLevel,
+        phone,
+        address,
+        sportsInterests,
+        firstName,
+        lastName
       },
       { new: true, runValidators: true }
     );
@@ -392,87 +404,59 @@ router.post("/authenticate", async (req: any, res: any) => {
 router.get("/", async (req: any, res: any) => {
   try {
     const { role } = req.query;
-    let query = {};
-    
+    let query: any = {}; // Using 'any' for query type for simplicity here
+
     if (role === 'user') {
-      query = { roles: { $in: ['user'] } };
+      query = { roles: { $in: ['user'] }, isCoach: { $ne: true } }; // Ensure only users, not coaches with user role
     } else if (role === 'coach') {
-      query = { roles: { $in: ['coach'] } };
+      query = { roles: { $in: ['coach'] }, isCoach: true }; // Ensure isCoach is true
     }
+    // If role is not 'user' or 'coach', query remains {}, fetching all users.
 
-    const users = await UserModel.find(query)
+    let usersFound = await UserModel.find(query)
       .populate("sportsInterests")
-      .populate("coachProfile.specializations");
-    res.status(200).json(users);
-  } catch (error) {
-    res.status(500).json({ error: "Failed to fetch user" });
-  }
-});
+      .populate("coachProfile.specializations")
+      .lean<IUser[]>();
 
-/**
- * @swagger
- * /users/{id}:
- *   get:
- *     summary: Get user by ID
- *     tags: [Users]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: The user ID
- *     responses:
- *       200:
- *         description: User details
- *       404:
- *         description: User not found
- */
-router.get("/:id", async (req: any, res: any) => {
-  try {
-    const user = await UserModel.findById(req.params.id).select(
-      "-password"
-    ).populate("coachProfile.specializations").populate("sportsInterests");
-    if (!user) {
-      return res.status(404).json({ error: "User not found" });
+    if (role === 'coach' && Array.isArray(usersFound)) {
+      usersFound = await Promise.all(usersFound.map(async (coach) => {
+        if (!coach._id) {
+          console.error(`Coach found without an _id: ${coach.email}`);
+          return coach;
+        }
+
+        let coachIdToUse: mongoose.Types.ObjectId;
+        if (coach._id instanceof mongoose.Types.ObjectId) {
+          coachIdToUse = coach._id;
+        } else if (typeof coach._id === 'string' && mongoose.Types.ObjectId.isValid(coach._id)) {
+          coachIdToUse = new mongoose.Types.ObjectId(coach._id);
+        } else {
+          console.error(`Coach found with invalid _id format: ${coach._id} for email: ${coach.email}`);
+          // If coachProfile exists, add default/error stats, otherwise initialize it
+          coach.coachProfile = coach.coachProfile || {};
+          const coachProfileWithStats = coach.coachProfile as any;
+          coachProfileWithStats.averageRating = 0;
+          coachProfileWithStats.totalReviews = 0;
+          return coach; // Return coach with 0 stats if ID is invalid
+        }
+        
+        const reviewStats = await CoachReviewModel.calculateAverageRating(coachIdToUse);
+
+        if (!coach.coachProfile) {
+          coach.coachProfile = {} as any;
+        }
+        const coachProfileWithStats = coach.coachProfile as any;
+        coachProfileWithStats.averageRating = reviewStats.averageRating;
+        coachProfileWithStats.totalReviews = reviewStats.totalReviews;
+
+        return coach;
+      }));
     }
-
-    console.log("User ID being searched:", req.params.id);
-
-    // Try to find events by either ObjectId or string ID
-    const events = await EventModel.find({
-      $or: [
-        { organizer: req.params.id },
-        { organizer: req.params.id.toString() },
-      ],
-    }).populate("category");
-
-    console.log("Found events:", events.length);
-
-    // Convert events to plain objects and assign to user
-    const plainEvents = events.map((event) => {
-      const plainEvent = event.toObject();
-      // Handle populated category
-      if (
-        plainEvent.category &&
-        typeof plainEvent.category === "object" &&
-        "toObject" in plainEvent.category
-      ) {
-        plainEvent.category = plainEvent.category.toObject();
-      }
-      return plainEvent;
-    });
-
-    // Create response object with user data and events
-    const responseData = {
-      ...user.toObject(),
-      events: plainEvents,
-    };
-
-    res.json(responseData);
+    
+    res.status(200).json(usersFound);
   } catch (error) {
-    console.error("Error fetching user or events:", error);
-    res.status(500).json({ error: "Failed to fetch user" });
+    console.error("Error fetching users:", error); // Added console.error for logging
+    res.status(500).json({ error: "Failed to fetch users" }); // Standardized error message
   }
 });
 
@@ -496,6 +480,7 @@ router.put("/:id", async (req: any, res: any) => {
       location,
       roles,
       isCoach,
+      phone,
     } = req.body;
 
     const updatedUser = await UserModel.findByIdAndUpdate(
@@ -517,6 +502,7 @@ router.put("/:id", async (req: any, res: any) => {
         location,
         roles,
         isCoach,
+        phone,
       },
       { new: true }
     );
@@ -644,21 +630,78 @@ const getAllUsersHandler: AsyncRequestHandler = async (req, res, next) => {
 
 const getUserByIdHandler: AsyncRequestHandler = async (req, res, next) => {
   try {
-    const user = await UserModel.findById(req.params.id).select("-password");
+    console.log(req.params.id);
+    const userId = req.params.id;
+    console.log(`Fetching user by ID: ${userId}`); // Log User ID
+
+    const user = await UserModel.findById(userId)
+      .select("-password")
+      .populate("coachProfile.specializations")
+      .populate("sportsInterests");
+
     if (!user) {
+      console.log(`User not found for ID: ${userId}`);
       res.status(404).json({ error: "User not found" });
       return;
     }
+    console.log(`User found: ${user.email}, isCoach: ${user.isCoach}`); // Log if user is coach
+
+    const responseData = user.toObject() as IUser & { coachProfile?: any, events?: any[] };
+
+    if (responseData.isCoach) {
+      console.log(`User ${user.email} is a coach. Fetching review details...`);
+      if (!responseData.coachProfile) {
+        responseData.coachProfile = {};
+      }
+
+      const reviews = await CoachReviewModel.find({ coach: user._id })
+        .populate("reviewer", "firstName lastName image")
+        .sort({ createdAt: -1 })
+        .lean();
+      
+      console.log(`Found ${reviews.length} reviews for coach ${user.email}`); // Log number of reviews
+      if (reviews.length > 0) {
+        console.log('First review details:', JSON.stringify(reviews[0], null, 2)); // Log first review
+      }
+      responseData.coachProfile.detailedReviews = reviews;
+
+      let coachIdForStats: mongoose.Types.ObjectId;
+      if (user._id instanceof mongoose.Types.ObjectId) {
+        coachIdForStats = user._id;
+      } else if (typeof user._id === 'string' && mongoose.Types.ObjectId.isValid(user._id)) {
+        coachIdForStats = new mongoose.Types.ObjectId(user._id);
+      } else {
+        console.error(`Invalid _id type for user ${user.email} when calculating review stats.`);
+        responseData.coachProfile.averageRating = 0;
+        responseData.coachProfile.totalReviews = 0;
+      } 
+      
+      if (coachIdForStats!) { 
+          const reviewStats = await CoachReviewModel.calculateAverageRating(coachIdForStats);
+          console.log(`Review stats for coach ${user.email}:`, JSON.stringify(reviewStats, null, 2)); // Log review stats
+          responseData.coachProfile.averageRating = reviewStats.averageRating;
+          responseData.coachProfile.totalReviews = reviewStats.totalReviews;
+      } else {
+        responseData.coachProfile.averageRating = responseData.coachProfile.averageRating || 0;
+        responseData.coachProfile.totalReviews = responseData.coachProfile.totalReviews || 0;
+      }
+    } else {
+      console.log(`User ${user.email} is NOT a coach.`); // Log if not a coach
+    }
 
     const events = await EventModel.find({
-      organizer: req.params.id,
-    }).populate("category");
+      organizer: userId, 
+    }).populate("category").lean();
+    console.log(`Found ${events.length} events for user ${user.email}`); // Log events
 
-    res.json({
-      ...user.toObject(),
-      events: events.map((event) => event.toObject()),
+    responseData.events = events.map(event => {
+      return event;
     });
+
+    // console.log('Final responseData:', JSON.stringify(responseData, null, 2)); // Optional: Log full response
+    res.json(responseData);
   } catch (error) {
+    console.error("Error in getUserByIdHandler:", error);
     next(error);
   }
 };

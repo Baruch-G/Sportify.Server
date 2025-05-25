@@ -1,6 +1,6 @@
 import express from "express";
 import { CoachReviewModel } from "../models/CoachReview";
-import { authenticateToken } from "../middleware/auth";
+import { authenticateToken, authorizeRoles } from "../middleware/auth";
 import mongoose from "mongoose";
 
 const router = express.Router();
@@ -56,7 +56,7 @@ const router = express.Router();
  */
 router.post("/", authenticateToken, async (req: any, res: any) => {
   try {
-    const { coachId, rating, comment, categories, sessionDate } = req.body;
+    const { coachId, rating, comment } = req.body;
     const reviewerId = req.user.id; // From auth middleware
 
     // Check if user has already reviewed this coach
@@ -74,14 +74,15 @@ router.post("/", authenticateToken, async (req: any, res: any) => {
       reviewer: reviewerId,
       rating,
       comment,
-      categories,
-      sessionDate: sessionDate ? new Date(sessionDate) : undefined,
+      createdAt: new Date(),
+      updatedAt: new Date(),
       isVerified: false // Can be updated later if verified
     });
 
     await review.save();
     res.status(201).json(review);
   } catch (error) {
+    console.error("Failed to create review:", error);
     res.status(500).json({ error: "Failed to create review" });
   }
 });
@@ -207,6 +208,83 @@ router.delete("/:reviewId", authenticateToken, async (req: any, res: any) => {
     res.status(204).send();
   } catch (error) {
     res.status(500).json({ error: "Failed to delete review" });
+  }
+});
+
+/**
+ * @swagger
+ * /coach-reviews/all:
+ *   get:
+ *     summary: Get all reviews (Admin only)
+ *     tags: [Coach Reviews]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: A list of all reviews
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 reviews:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/CoachReview'
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     total:
+ *                       type: integer
+ *                     page:
+ *                       type: integer
+ *                     pages:
+ *                       type: integer
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (User is not an admin)
+ *       500:
+ *         description: Failed to fetch reviews
+ */
+router.get("/all", authenticateToken, authorizeRoles("admin"), async (req: any, res: any) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    const [reviews, total] = await Promise.all([
+      CoachReviewModel.find({})
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .populate("reviewer", "firstName lastName")
+        .populate("coach", "firstName lastName"),
+      CoachReviewModel.countDocuments({})
+    ]);
+
+    res.json({
+      reviews,
+      pagination: {
+        total,
+        page,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error("Failed to fetch all reviews:", error); // Log the error for debugging
+    res.status(500).json({ error: "Failed to fetch reviews" });
   }
 });
 
