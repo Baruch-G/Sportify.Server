@@ -3,7 +3,6 @@ import { v4 as uuidv4 } from "uuid";
 import { IUser } from "./User";
 
 export interface ICoachReview extends Document {
-  id: string;
   coach: mongoose.Schema.Types.ObjectId | IUser; // Reference to the coach (User)
   reviewer: mongoose.Schema.Types.ObjectId | IUser; // Reference to the reviewer (User)
   rating: number; // Rating from 1 to 5
@@ -21,8 +20,19 @@ export interface ICoachReview extends Document {
   sessionDate?: Date; // Date of the coaching session if applicable
 }
 
+// Interface for the model statics
+export interface ICoachReviewStatics extends mongoose.Model<ICoachReview> {
+  calculateAverageRating(coachId: mongoose.Types.ObjectId): Promise<{
+    averageRating: number;
+    totalReviews: number;
+    averageProfessionalism: number;
+    averageCommunication: number;
+    averageExpertise: number;
+    averageValueForMoney: number;
+  }>;
+}
+
 const CoachReviewSchema: Schema = new Schema({
-  id: { type: String, default: uuidv4 },
   coach: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
@@ -43,7 +53,7 @@ const CoachReviewSchema: Schema = new Schema({
     type: String,
     required: true,
     trim: true,
-    minlength: 10,
+    default: "",
     maxlength: 1000
   },
   categories: {
@@ -94,4 +104,4 @@ CoachReviewSchema.statics.calculateAverageRating = async function(coachId: mongo
   };
 };
 
-export const CoachReviewModel = mongoose.model<ICoachReview>("CoachReview", CoachReviewSchema); 
+export const CoachReviewModel = mongoose.model<ICoachReview, ICoachReviewStatics>("CoachReview", CoachReviewSchema); 
